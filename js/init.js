@@ -1,1 +1,1 @@
-$(function(){	Carousel.init($(".pictureSlider"));});
+function(){	Carousel.init($(".pictureSlider"));};
