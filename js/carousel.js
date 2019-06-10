@@ -18,9 +18,9 @@
 		//默认配置参数
 		this.setting = {
 			"width" : 1000,			//幻灯片的宽度
-			"height" : 400,			//幻灯片的高度
-			"posterWidth" : 640,	//幻灯片第一帧的宽度
-			"posterHeight" : 400,	//幻灯片第一帧的高度
+			"height" : 500,			//幻灯片的高度
+			"posterWidth" : 700,	//幻灯片第一帧的宽度
+			"posterHeight" : 500,	//幻灯片第一帧的高度
 			"scale" : 0.9,			//记录显示比例关系
 			"speed" : 500,
 			"autoPlay" : false,
