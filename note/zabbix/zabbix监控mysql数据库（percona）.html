@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zabbix监控mysql数据库（percona）</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">zabbix监控mysql数据库（percona）</h1>
+        <div class="show-content">
+          <p>1，percona插件安装</p><p>1）<a href="https://www.percona.com/downloads/percona-monitoring-plugins/LATEST/" target="_blank">下载</a></p><p>[root@VM_0_2_centos iso]# wget https://www.percona.com/downloads/percona-monitoring-plugins/percona-monitoring-plugins-1.1.8/binary/redhat/7/x86_64/percona-zabbix-templates-1.1.8-1.noarch.rpm</p><p>2）安装</p><p>[root@VM_0_2_centos iso]# rpm -ivh percona-zabbix-templates-1.1.8-1.noarch.rpm</p><p>[root@VM_0_2_centos ~]# ls /var/lib/zabbix/percona/</p><p>scripts  templates</p><p>[root@VM_0_2_centos ~]# cd /var/lib/zabbix/percona/</p><p>[root@VM_0_2_centos percona]# ls scripts/</p><p>get_mysql_stats_wrapper.sh  ss_get_mysql_stats.php</p><p>[root@VM_0_2_centos percona]# ls templates/</p><p>userparameter_percona_mysql.conf  zabbix_agent_template_percona_mysql_server_ht_2.0.9-sver1.1.8.xml</p><p>2，创建监控mysql的管理账号</p><p>mysql&gt; grant usage on *.* to zabbix1@localhost identified by '123456';</p><p>mysql&gt; flush privileges;</p><p>3，修改MySQL的执行命令文件，更改mysql的用户与密码</p><p>[root@VM_0_2_centos percona]# vim scripts/get_mysql_stats_wrapper.sh</p><p> 19     RES=`HOME=~zabbix /usr/bin/mysql -uzabbix1 -p123456 -e 'SHOW SLAVE STATUS\G' | egrep '(Slave    _IO_Running|Slave_SQL_Running):' | awk -F: '{print $2}' | tr '\n' ','`</p><p>4，修改ss_get_mysql_stats.php配置文件</p><p>[root@VM_0_2_centos percona]# vim scripts/ss_get_mysql_stats.php</p><p>....</p><p>  30 $mysql_user = 'zabbix1';</p><p>  31 $mysql_pass = '123456';</p><p>  32 $mysql_port = 3306;</p><p>.....</p><p>5，将监控的模板放入到zabbix的监控目录下</p><p>[root@VM_0_2_centos percona]# cp templates/userparameter_percona_mysql.conf /usr/local/zabbix/etc/zabbix_agentd.conf.d/</p><p>6，重启zabbix客户端</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

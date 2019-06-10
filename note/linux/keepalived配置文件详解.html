@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>keepalived配置文件详解</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">keepalived配置文件详解</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-d3803cef80b7ead7.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b> 配置文件详解</b></p><blockquote>
+<p>[root@jluocc ~]# vim /etc/keepalived/keepalived.conf</p>
+<p>! Configuration File for keepalived</p>
+<p><br></p>
+<p>global_defs {</p>
+<p>   notification_email {</p>
+<p>        root@localhost　　//管理员邮箱,可以配置多个</p>
+<p>   }</p>
+<p>notification_email_from Alexandre.Cassen@firewall.loc   //设置发件人邮箱</p>
+<p>smtp_server 127.0.0.1　　　//邮箱服务器地址</p>
+<p>smtp_connect_timeout 30　　　//连接邮箱服务器超时时间</p>
+<p>router_id LVS_DEVEL　　　　//路由id，每组的路由id是唯一的</p>
+<p>vrrp_skip_check_adv_addr</p>
+<p>vrrp_strict　　　　　　　　　//此项设置启动keepalived时会打开iptables，会默认DROP掉所有访问vip的数据包，需要清空着一条规则，命令:iptables -nL   查看规则　　　iptables -F   清空规则</p>
+<p> vrrp_garp_interval 0</p>
+<p> vrrp_gna_interval 0</p>
+<p>}</p>
+<p>vrrp_instance VI_1 {</p>
+<p>state MASTER　　　　　//主服务器MASTER,从服务器BACKUP</p>
+<p>interface eth0　　　　//定义网络接口，网卡名称</p>
+<p>virtual_router_id 51　　　//定义主辅VRID号必须一致（生产环境建议修改）</p>
+<p>priority 100　　　　　　//定义服务器优先级(默认为100)</p>
+<p>advert_int 1　　　　　　//主辅服务器每个1秒互相对比priority值</p>
+<p>authentication {</p>
+<p>auth_type PASS　　　//keepalived只支持俩中认证，这里使用第二种简单密码认证，也就是预认证</p>
+<p>auth_pass 1111　　　//主辅认证密码（生产环境介意修改），最长支持八位</p>
+<p>    }</p>
+<p>virtual_ipaddress {　　　　//vip虚拟ip地址，可以配置多个</p>
+<p>        192.168.200.16</p>
+<p>　　192.168.200.17</p>
+<p>    }</p>
+<p>}</p>
+<p>virtual_server 192.168.200.16 443 {　　　//vip,端口号</p>
+<p>delay_loop 6　　　　　　 ////检查周期6秒</p>
+<p>lb_algo wrr　　　　//常用算法(rr | wrr | lc | wlc)　rr：轮询　wrr:加权轮询　lc:最少连接　wlc:加权最少连接</p>
+<p>lb_kind DR　　　　//模式(NAT | DR | TUN),常用DR,NAT</p>
+<p>#persistence_timeout 50   //保持连接，开启后，客户端在一定时间内始终访问相同服务器,测试环境可注释掉，生产环境开启</p>
+<p>protocol TCP　　　//协议类型TCP,只支持TCP，所以想想就好</p>
+<p>#sorry_server 127.0.0.1:80  //用于集群挂掉了，并且该调度器为MASTER时,提示的友好界面给客户机，比如提示：服务器正在维护等等友好信息...</p>
+<p><br></p>
+<p>real_server 192.168.201.100 443 {   //实际后端主机ip和端口号</p>
+<p>weight 1　　//权重值（默认为1，最小值为1），权重越大，该后端主机承受的压力越大，提示：仅仅lb_algo　选择wrr | wlc，有效</p>
+<p>SSL_GET {　　                 //加密的https健康检查</p>
+<p>            url {</p>
+<p>                   path /　　　　　　　　//检查根下的文件</p>
+<p>                   digest ff20ad2481f97b1754ef3e12ecd3a9cc　　//对比码，如加密的md5</p>
+<p>                    #status_code 200                #返回状态码为200表示OK,上一行可用这个代替，具体情况看自己的需求</p>
+<p>            }</p>
+<p>            url {</p>
+<p>                   path /mrtg/　　　　　//检查/mrtg/下的文件</p>
+<p>                   digest 9b3a0c85a887a256d6939da88aabd8cd</p>
+<p>            }</p>
+<p>            connect_timeout 3　　//连接超时时间，单位秒</p>
+<p>            nb_get_retry 3　　　　//重复连接次数</p>
+<p>            delay_before_retry 3　//延时3秒重连一次</p>
+<p>        }</p>
+<p>　}</p>
+<p>real_server 192.168.201.101 443 { //实际后端主机ip和端口号</p>
+<p>         ...........</p>
+<p>     }</p>
+<p>　．．．．．．</p>
+<p>}</p>
+<p>virtual_server   192.168.200.17 1358 {</p>
+<p>    delay_loop 6</p>
+<p>    lb_algo wrr</p>
+<p>    lb_kind DR</p>
+<p>    #persistence_timeout 50</p>
+<p>    protocol TCP</p>
+<p><br></p>
+<p>    sorry_server 192.168.200.200 1358</p>
+<p><br></p>
+<p>    real_server 192.168.200.2 1358 {</p>
+<p>        weight 1</p>
+<p>HTTP_GET {　　　　                                //普通的http健康检查</p>
+<p>            url {</p>
+<p>              path /testurl/test.jsp</p>
+<p>              digest 640205b7b0fc66c1ea91c463fac6334d</p>
+<p>            }</p>
+<p>            url {</p>
+<p>              path /testurl2/test.jsp</p>
+<p>              digest 640205b7b0fc66c1ea91c463fac6334d</p>
+<p>            }</p>
+<p>            url {</p>
+<p>              path /testurl3/test.jsp</p>
+<p>              digest 640205b7b0fc66c1ea91c463fac6334d</p>
+<p>            }</p>
+<p>            connect_timeout 3</p>
+<p>            nb_get_retry 3</p>
+<p>            delay_before_retry 3</p>
+<p>        }</p>
+<p>}</p>
+<p>．．．．．．</p>
+<p>｝</p>
+</blockquote><p><b>温馨提示：</b></p><p>这个是keepalived的配置文件详解，仅供参考，希望能帮到你们。</p><p><br></p><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

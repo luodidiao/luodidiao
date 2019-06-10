@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nginx源码安装</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">nginx源码安装</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-8ef72dc3ecbf7d9c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>1，安装依赖包</b></p><blockquote><p>[root@web50 ~]#  yum -y install zlib-devel openssl-devel pcre-devel gcc make</p></blockquote><p><b>2，nginx下载</b></p><p><b>官网地址：</b><a href="http://nginx.org/en/download.html" target="_blank">http://nginx.org/en/download.html</a></p><blockquote>
+<p>[root@web50 iso]# curl -O http://nginx.org/download/nginx-1.12.2.tar.gz</p>
+<p>[root@web50 iso]# ls</p>
+<p>nginx-1.12.2.tar.gz</p>
+</blockquote><p><b>3，解压安装</b></p><blockquote>
+<p>[root@web50 iso]# tar -xvf nginx-1.12.2.tar.gz</p>
+<p>[root@web50 iso]# ls</p>
+<p>nginx-1.12.2  nginx-1.12.2.tar.gz</p>
+<p>[root@web50 nginx-1.12.2]# ./configure --help</p>
+<p>--prefix=PATH</p>
+<p>--user=USER</p>
+<p>--group=GROUP</p>
+<p>--with-http_ssl_module</p>
+<p>--with-http_stub_status_module</p>
+<p>--without-http_fastcgi_module      disable ngx_http_fastcgi_module</p>
+<p>  --without-http_uwsgi_module        disable ngx_http_uwsgi_module</p>
+<p>--without-mail_pop3_module         disable ngx_mail_pop3_module</p>
+<p>  --without-mail_imap_module         disable ngx_mail_imap_module</p>
+<p>  --without-mail_smtp_module         disable ngx_mail_smtp_module</p>
+<p>..........</p>
+<p>[root@web50 nginx-1.12.2]# useradd -s /sbin/nologin nginx</p>
+<p>[root@web50 nginx-1.12.2]# ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_ssl_module --with-http_stub_status_module</p>
+<p>[root@web50 nginx-1.12.2]# make &amp;&amp; make install</p>
+<p>[root@web50 ~]# ls /usr/local/nginx/</p>
+<p>conf  html  logs  sbin</p>
+<p>[root@web50 ~]# ln -s /usr/local/nginx/sbin/nginx /sbin/       </p>
+<p>[root@web50 ~]# nginx</p>
+<p>[root@web50 ~]# ss -tunlp | grep :80</p>
+<p>tcp    LISTEN     0      128       *:80                    *:*                   users:(("nginx",pid=3816,fd=6),("nginx",pid=3815,fd=6))</p>
+<p>提示：</p>
+<p>[root@web50 ~]# nginx</p>
+<p>[root@web50 ~]# nginx -s reload</p>
+<p>[root@web50 ~]# nginx -s stop</p>
+</blockquote><p><b>4，验证</b></p><p><b>注意关闭防火墙：<br></b></p><blockquote>
+<p>[root@web50 ~]# iptables -F</p>
+<p>[root@web50 ~]# systemctl stop firewalld</p>
+<p>[root@web50 ~]# curl http://127.0.0.1</p>
+<p>&lt;!DOCTYPE html&gt;</p>
+<p>&lt;html&gt;</p>
+<p>&lt;head&gt;</p>
+<p>&lt;title&gt;Welcome to nginx!&lt;/title&gt;</p>
+<p>........</p>
+<p>&lt;/html&gt;</p>
+<p>或者打开浏览器输入</p>
+<p>http://127.0.0.1</p>
+</blockquote><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3ec785755d096bd0.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4db67978f6ede2ef.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

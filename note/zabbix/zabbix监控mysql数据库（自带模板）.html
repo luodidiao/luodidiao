@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zabbix监控mysql数据库（自带模板）</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">zabbix监控mysql数据库（自带模板）</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-e2e1b67ee84776ae.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>1，agent端</b></p><p><b>1）授权</b></p><blockquote>
+<p>mysql&gt; grant usage,process,replication client,replication slave on *.* to 'zabbix1'@'localhost' identified by '123456';</p>
+<p>mysql&gt; flush privileges;</p>
+</blockquote><p><b>2）编辑配置文件</b></p><p>zabbix安装路径为：/usr/local/zabbix</p><p>配置mysql配置文件</p><blockquote>
+<p>[root@VM_0_2_centos ~]# vim /etc/my.cnf</p>
+<p>[client]</p>
+<p>user=zabbix1</p>
+<p>password=123456</p>
+<p>[mysqladmin]</p>
+<p>host=localhost</p>
+<p>user=zabbix1</p>
+<p>password=123456</p>
+</blockquote><p>查看mysql的sock文件路径</p><blockquote>
+<p>[root@VM_0_2_centos zabbix]# ls /var/lib/mysql/mysql.sock</p>
+<p>/var/lib/mysql/mysql.sock</p>
+<p>[root@VM_0_2_centos zabbix]# vim /usr/local/zabbix/etc/.my.cnf</p>
+<p>#zabbix agent</p>
+<p>[mysql]</p>
+<p>host=localhost</p>
+<p>user=zabbix1</p>
+<p>password=123456</p>
+<p>socket=/var/lib/mysql/mysql.sock</p>
+<p>[mysqladmin]</p>
+<p>host=localhost</p>
+<p>user=zabbix1</p>
+<p>password=123456</p>
+<p>socket=/var/lib/mysql/mysql.sock</p>
+</blockquote><p><b>3）拷贝配置文件（安装包自带的）</b></p><blockquote>
+<p>[root@VM_0_2_centos zabbix-4.2.1]# cp conf/zabbix_agentd/userparameter_mysql.conf /usr/local/zabbix/etc/zabbix_agentd.conf.d/</p>
+<p>[root@VM_0_2_centos zabbix-4.2.1]# vim /usr/local/zabbix/etc/zabbix_agentd.conf.d/userparameter_mysql.conf</p>
+<p>#把HOME=/var/lib/zabbix 全部改成HOME=/usr/local/zabbix/etc/.my.cnf(刚才新建的文件绝对路径)</p>
+<p>.....</p>
+<p>UserParameter=mysql.status[*],echo "show global status where Variable_name='$1';" | HOME=/usr/local/zabbix/etc/.my.cnf mysql -N | awk '{print $$2}'</p>
+<p>....</p>
+<p>UserParameter=mysql.size[*],bash -c 'echo "select sum($(case "$3" in both|"") echo "data_length+index_length";; data|index) echo "$3_length";; free) echo "data_free";; esac)) from information_schema.tables$([[ "$1" = "all" || ! "$1" ]] || echo " where table_schema=\"$1\"")$([[ "$2" = "all" || ! "$2" ]] || echo "and table_name=\"$2\"");" | HOME=/usr/local/zabbix/etc/.my.cnf mysql -N'</p>
+<p>......</p>
+<p>UserParameter=mysql.ping,HOME=/usr/local/zabbix/etc/.my.cnf mysqladmin ping | grep -c alive</p>
+<p>UserParameter=mysql.version,mysql -V</p>
+</blockquote><p><b>2，server端</b></p><p><b>1）在服务器的web端添加mysql模板</b></p><p><br></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-7b34e0668c8fcfd0.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>2）查看监控到的数据图</b></p><p>以查看mysql uptime为例，如下图</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-da63b0c9b1afdb1b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-7a6cd242bbc750d5.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>总结</b></p><p>忙了一下子，最后发现监控的数据太少了，下一节采用第三方插件监控mysql健康状态。</p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-eb5c6c0c77f244c8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-9d190e39e9200688.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

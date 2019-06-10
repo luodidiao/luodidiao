@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搭建个人精品博客教程（优化篇）-luojun</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">搭建个人精品博客教程（优化篇）-luojun</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-32983ed89647a6ed.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>前言</b></p><p>在基础篇里，已经搭建出了个人的精品博客（地址https://www.jianshu.com/p/4aa1c02a1b0d）</p><p>接下来要做一些优化</p><p><b>第一 linux服务器内核优化</b></p><blockquote>
+<p>[root@VM_0_2_centos ~]# vim /etc/sysctl.conf</p>
+<p>net.ipv4.tcp_max_tw_buckets = 6000</p>
+<p>net.ipv4.ip_local_port_range = 1024 65000</p>
+<p>net.ipv4.tcp_tw_recycle = 1</p>
+<p>net.ipv4.tcp_tw_reuse = 1</p>
+<p>net.ipv4.tcp_syncookies = 1</p>
+<p>net.core.somaxconn = 262144</p>
+<p>net.core.netdev_max_backlog = 262144</p>
+<p>net.ipv4.tcp_max_orphans = 262144</p>
+<p>net.ipv4.tcp_max_syn_backlog = 262144</p>
+<p>net.ipv4.tcp_timestamps = 0</p>
+<p>net.ipv4.tcp_synack_retries = 1</p>
+<p>net.ipv4.tcp_syn_retries = 1</p>
+<p>net.ipv4.tcp_fin_timeout = 1</p>
+<p>net.ipv4.tcp_keepalive_time = 30</p>
+<p>[root@VM_0_2_centos ~]# sysctl -p</p>
+<p>提示：</p>
+<p>net.ipv4.tcp_max_tw_buckets = 6000 </p>
+<p>timewait的数量，默认是180000</p>
+<p>net.ipv4.ip_local_port_range = 1024 65000</p>
+<p>允许系统打开的端口范围</p>
+<p>net.ipv4.tcp_tw_recycle = 1</p>
+<p>启用timewait快速回收</p>
+<p>net.ipv4.tcp_tw_reuse = 1</p>
+<p>开启重用。允许将TIME-WAIT sockets重新用于新的TCP连接</p>
+<p>net.ipv4.tcp_syncookies = 1</p>
+<p>开启SYN Cookies，当出现SYN等待队列溢出时，启用cookies来处理</p>
+<p>net.core.somaxconn = 262144</p>
+<p>web应用中listen函数的backlog默认会给我们内核参数的net.core.somaxconn限制到128，而Nginx内核参数定义的NGX_LISTEN_BACKLOG默认为511，所以有必要调整这个值。</p>
+<p>net.core.netdev_max_backlog = 262144</p>
+<p>每个网络接口接收数据包的速率比内核处理这些包的速率快时，允许送到队列的数据包的最大数目。</p>
+<p>net.ipv4.tcp_max_orphans = 262144</p>
+<p>系统中最多有多少个TCP套接字不被关联到任何一个用户文件句柄上。如果超过这个数字，孤儿连接将即刻被复位并打印出警告信息。这个限制仅仅是为了防止简单的DoS攻击，不能过分依靠它或者人为地减小这个值，更应该增加这个值(如果增加了内存之后)。</p>
+<p>net.ipv4.tcp_max_syn_backlog = 262144</p>
+<p>记录的那些尚未收到客户端确认信息的连接请求的最大值。对于有128M内存的系统而言，缺省值是1024，小内存的系统则是128。</p>
+<p>net.ipv4.tcp_timestamps = 0</p>
+<p>时间戳可以避免序列号的卷绕。一个1Gbps的链路肯定会遇到以前用过的序列号。时间戳能够让内核接受这种“异常”的数据包。这里需要将其关掉。</p>
+<p>net.ipv4.tcp_synack_retries = 1</p>
+<p>为了打开对端的连接，内核需要发送一个SYN并附带一个回应前面一个SYN的ACK。也就是所谓三次握手中的第二次握手。这个设置决定了内核放弃连接之前发送SYN+ACK包的数量。</p>
+<p>net.ipv4.tcp_syn_retries = 1</p>
+<p>在内核放弃建立连接之前发送SYN包的数量。</p>
+<p>net.ipv4.tcp_fin_timeout = 1</p>
+<p>如果套接字由本端要求关闭，这个参数决定了它保持在FIN-WAIT-2状态的时间。对端可以出错并永远不关闭连接，甚至意外当机。缺省值是60秒。2.2 内核的通常值是180秒，你可以按这个设置，但要记住的是，即使你的机器是一个轻载的WEB服务器，也有因为大量的死套接字而内存溢出的风险，FIN- WAIT-2的危险性比FIN-WAIT-1要小，因为它最多只能吃掉1.5K内存，但是它们的生存期长些。</p>
+<p>net.ipv4.tcp_keepalive_time = 30</p>
+<p>当keepalive起用的时候，TCP发送keepalive消息的频度。缺省是2小时。</p>
+</blockquote><p>第二节 nginx优化</p><p>2.1  </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

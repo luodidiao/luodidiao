@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rsync＋inotify实时数据同步</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">rsync＋inotify实时数据同步</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-86e1f3cfbd0f8e9e.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h1>一工具准备</h1><p>操作系统：centos7</p><p>rsync：数据同步软件，linux系统自带</p><p>inotify：监控文件系统操作,比如读取、写入和创建。<i>Inotify</i> 反应灵敏,用法非常简单,并且比 cron 任务的繁忙轮询高效得多</p><p>inotify链接：<a href="https://sourceforge.net/projects/inotify-tools/" target="_blank">https://sourceforge.net/projects/inotify-tools/</a></p><p>或    https://pan.baidu.com/s/1zLHiX1kQFrTyf9RkclQ3yg     提取码：6quo</p><h1>二语法格式</h1><h4>
+<b>2.1，rsync命令用法</b><br>
+</h4><p>格式：rsync [选项..] 源目录 目标目录</p><p>区别:同步与复制的差异</p><p>复制:完全拷贝源到目标</p><p>同步:增量拷贝,只传输变化过的数据</p><h4>
+<b>2.２，本地同步</b><br>
+</h4><p>rsync [选项..] 本地目录1 本地目录2 #把目录1同步到目录2下</p><p>rsync [选项..] 本地目录1/ 本地目录2 #把目录1下的数据同步到目录2下</p><p>-a :归档模式，相当于-rlptgoD</p><p>-v :显示详细信息</p><p>-z :传输过程中启用压缩/解压</p><p>-n :测试同步过程，不做实际修改 #与-avz连用</p><p>--delete :删除目标文件夹内多余的文档 #与-avz连用</p><h4>
+<b>2.3，远程同步</b><br>
+</h4><p>rsync+ssh</p><p>--命令</p><p>rsync user@host:远程目录/ #列出ssh服务端资源</p><p>rsync [选项..] user@host:远程目录 本地目录 #下行（下载） 不常用</p><p>rsync [选项..] 本地目录 user@host:远程目录 #上行（上传） 常用</p><p>-a :归档模式，相当于-rlptgoD</p><p>-v :显示详细信息</p><p>-z :传输过程中启用压缩/解压</p><p>-n :测试同步过程，不做实际修改 #与-avz连用</p><p>--delete :删除目标文件夹内多余的文档 #与-avz连用</p><p>提示：同步目录时在目录后加/，表示同步目录里的数据；同步目录不加/，表示同步此目录。</p><h4><b>2.4，实现实时同步</b></h4><p><b>1)部署公钥、私钥，实现ssh无密码验证</b></p><p>[root@svr7 /]# ssh-keygen #虚拟机A生成公钥、私钥 一路回车</p><p>[root@svr7 /]# ls /root/.ssh #公钥、私钥生成的位置</p><p>id_rsa id_rsa.pub known_hosts</p><p>[root@svr7 /]# ssh-copy-id root@192.168.4.207 #传递公钥到目标主机（入虚拟机B）</p><p>[root@pc207 ~]# ls /root/.ssh #查看上传到虚拟机B的公钥</p><p>authorized_keys #上传到客户机的公钥文件</p><p><br></p><p><b>2) inotifywait基本用法</b></p><p>inotifywait [选项] 目标文件夹</p><p>-m :持续监控（捕获一个事件后不退出）</p><p>-r :递归监控，包括子目录及文件</p><p>-q :减少屏幕输出信息</p><p>-qq:无屏幕输出信息</p><p>-e :指定监控的modify move create delete attrib等事件类别</p><p><b>3) inotify安装</b></p><p>[root@svr7 /]# mkdir /myrpm</p><p>[root@svr7 /]# tar -xf /tools/inotify-tools-3.13.tar.gz -C /myrpm #减压</p><p>[root@svr7 /]# yum -y install gcc make #安装编译环境gcc make</p><p>[root@svr7 /]# cd /myrpm/inotify-tools-3.13/</p><p>[root@svr7 inotify-tools-3.13]# ./configure #生成Makefile文件</p><p>[root@svr7 inotify-tools-3.13]# make #编译成二进制文件</p><p>[root@svr7 inotify-tools-3.13]# make install #安装</p><p>[root@svr7 inotify-tools-3.13]# which inotifywait #查看命令位置</p><p>/usr/local/bin/inotifywait</p><p><br></p><p>4）<b>书写shell脚本</b></p><p>利用while循环来实现反复检查单次监控</p><p>语法：</p><p>while [条件 ]</p><p>do</p><p>循环执行</p><p>done</p><p>实现：</p><p>＃vim /jluocc/rsync.sh</p><p>#/bin/bash</p><p>while inotifywait -rqq /opt</p><p>do</p><p>rsync -az --delete /opt/ root@192.168.4.207:/opt #同步本地opt目录下的数据到另一台主机的/opt目录下</p><p>done</p><p>＃chmod +x /jluocc/rysnc.sh #给脚本执行权限</p><p>#/jluocc/rsync.sh #运行脚本达到实时数据同步</p><p><br></p><p><b>5）实现开机运行数据同步脚本</b></p><p>#vim /etc/rc.local #打开系统开机默认运行文件</p><p>/jluocc/rsync.sh #在文件里写入刚才写的脚本的绝对路径</p><p>#chmod +x /etc/rc.local #rc.local默认没有执行权限，需要赋予执行权限</p><p><br></p><h1>三总结</h1><p>rsync:实现数据同步</p><p>inotifywait:实现监控指定目录下的数据变化，发生变化返回相应结果</p><p>shell脚本:实现inotifywait实时监控，一旦数据变化，将实现rsync数据同步，达到数据的实时同步</p><p><br></p><p><br></p><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

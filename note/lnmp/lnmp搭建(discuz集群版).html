@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lnmp搭建(discuz集群版)</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">lnmp搭建(discuz集群版)</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-20e05bed696cbf8b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>第一节需求</h4><p>由于上一节<a href="https://www.jianshu.com/p/49e6af9ec56a" target="_blank">lnmp搭建(discuz单机版)</a>存在缺陷，所以本次教程主要<b>升级单机版到集群版</b>，提高系统的并发量和可靠性等等，架构如下：</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-b1bfe97384ade4c4.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>第二节工具准备</h4><blockquote>
+<p><a href="https://links.jianshu.com/go?to=https%3A%2F%2Fwww.centos.org%2Fdownload%2F" target="_blank">linux</a>==&gt;CentOS Linux release 7.4.1708 (Core)</p>
+<p><a href="https://links.jianshu.com/go?to=https%3A%2F%2Fwww.php.net%2Fdownloads.php" target="_blank">php</a>==&gt; php-5.4.16</p>
+<p><a href="https://links.jianshu.com/go?to=http%3A%2F%2Fnginx.org%2Fen%2Fdownload.html" target="_blank">nginx</a>==&gt;nginx-1.12.2</p>
+<p><a href="https://links.jianshu.com/go?to=https%3A%2F%2Fdev.mysql.com%2Fdownloads%2Fmysql%2F" target="_blank">mysql</a>==&gt;mysql-5.7.26</p>
+<p><a href="https://links.jianshu.com/go?to=https%3A%2F%2Fgitee.com%2FComsenzDiscuz%2FDiscuzX" target="_blank">discuz</a>==&gt;Discuz!X3.4</p>
+<p><a href="https://mariadb.com/downloads/#mariadb_platform-mariadb_maxscale" target="_blank">maxscale</a> ==&gt;maxscale-2.3.6</p>
+</blockquote><h4>第三节实战操作</h4><p><b>注意注意！！！！！！</b></p><p><b>每一台服务器前期准备:</b></p><blockquote>
+<p>[root@web50 iso]# yum -y install epel-realease</p>
+<p>[root@web50 iso]# vim /etc/selinux/config</p>
+<p>SELINUX=disabled</p>
+<p>[root@web50 iso]# systemctl stop firewalld</p>
+<p>[root@web50 iso]# systemctl disable firewalld</p>
+<p>[root@web50 iso]#yum  -y install iptables-services</p>
+<p>[root@web50 iso]# iptables -F</p>
+<p>[root@web50 iso]# service iptables save</p>
+</blockquote><p><b>3.1安装web</b></p><p><b>51-53都一样，以下都是已一台机器威力<br></b></p><p><b>1）安装网站nginx</b></p><blockquote>
+<p>[root@web51 ~]# useradd -s /sbin/nologin nginx</p>
+<p>[root@web51~]# yum -y install gcc automake autoconf libtool make gcc gcc-c++ glibc</p>
+<p>[root@web51~]# yum -y install zlib-devel openssl-devel pcre-devel </p>
+<p>[root@web51~]# curl -O http://nginx.org/download/nginx-1.12.2.tar.gz</p>
+<p> [root@web51 nginx-1.12.2]# # tar -xvf nginx-1.12.2.tar.gz</p>
+<p>[root@web51 nginx-1.12.2]# ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_ssl_module --with-http_stub_status_module</p>
+<p>[root@web51 nginx-1.12.2]# make &amp;&amp; make install</p>
+<p>[root@web51 ~]# ln -s /usr/local/nginx/sbin/nginx /sbin/   </p>
+<p>[root@web51 ~]# cd /usr/local/nginx/</p>
+<p>[root@web51 nginx]# vim conf/nginx.conf</p>
+<p>..........</p>
+<p>        location / {</p>
+<p>            root   html;</p>
+<p>            index  index.php index.html index.htm;</p>
+<p>        }</p>
+<p>        location ~ \.php$ {</p>
+<p>            root           html;</p>
+<p>            fastcgi_pass   127.0.0.1:9000;</p>
+<p>            fastcgi_index  index.php;</p>
+<p>        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;</p>
+<p>            include        fastcgi.conf;</p>
+<p>        }</p>
+<p>.........</p>
+<p>[root@web51 ~]# ss -tunlp | grep :80</p>
+<p>tcp    LISTEN     0      128       *:80                    *:*                   users:(("nginx",pid=1270,fd=6),("nginx",pid=1269,fd=6))</p>
+<p>[root@web51 ~]# scp -r 192.168.68.50:/usr/local/nginx/html/*  /usr/local/nginx/html/</p>
+<p>[root@web51 ~]# chown -R nginx:nginx /usr/local/nginx/html/</p>
+<p>[root@web51 ~]# echo '/usr/local/nginx/sbin/nginx' &gt;&gt; /etc/rc.local</p>
+<p>[root@web51 ~]# chmod +x /etc/rc.local</p>
+</blockquote><p><b>2）安装php</b></p><blockquote>
+<p>[root@web51 ~]# yum -y install libmcrypt-devel mhash-devel libxslt-devel libjpeg libjpeg-devel libpng libpng-devel freetype freetype-devel libxml2 libxml2-devel zlib zlib-devel glibc glibc-devel glib2 glib2-devel bzip2 bzip2-devel ncurses ncurses-devel curl curl-devel e2fsprogs e2fsprogs-devel krb5 krb5-devel libidn libidn-devel openssl openssl-devel libzip</p>
+<p>[root@web51 ~]# yum -y install php php-mysql php-fpm</p>
+<p>[root@web51 ~]# vim /etc/php-fpm.d/www.conf</p>
+<p>......</p>
+<p>user = nginx</p>
+<p>group = nginx</p>
+<p>.......</p>
+<p>[root@web51 ~]# systemctl start php-fpm</p>
+<p>[root@web51 ~]# systemctl enable php-fpm</p>
+<p>[root@web51 ~]# ss -tunlp | grep :9000</p>
+<p>tcp    LISTEN     0      128    127.0.0.1:9000                  *:*                   users:(("php-fpm",pid=23108,fd=5),("php-fpm",pid=23107,fd=5),("php-fpm",pid=23106,fd=7))</p>
+<p>[root@web51 ~]#  echo '&lt;?php echo phpinfo();?&gt;' &gt;/usr/local/nginx/html/test.php</p>
+</blockquote><p>浏览器:http://192.168.68.50/test.php</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-f3aa9a048a1afc3d.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>3.2安装调度器nginx</b></p><blockquote>
+<p>[root@dispatch103 ~]# useradd -s /sbin/nologin nginx</p>
+<p>[root@dispatch103 ~]# yum -y install gcc automake autoconf libtool make gcc gcc-c++ glibc</p>
+<p>[root@dispatch103 ~]# yum -y install zlib-devel openssl-devel pcre-devel </p>
+<p>[root@dispatch103 ~]# curl -O http://nginx.org/download/nginx-1.12.2.tar.gz</p>
+<p>[root@dispatch103 nginx-1.12.2]# # tar -xvf nginx-1.12.2.tar.gz</p>
+<p>[root@dispatch103 nginx-1.12.2]# ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_ssl_module --with-http_stub_status_module --with-stream</p>
+<p>[root@dispatch103 nginx-1.12.2]# make &amp;&amp; make install</p>
+<p>[root@dispatch103 ~]# ln -s /usr/local/nginx/sbin/nginx /sbin/</p>
+<p>[root@dispatch103 ~]# cd /usr/local/nginx/</p>
+<p>[root@dispatch103 nginx]# vim conf/nginx.conf</p>
+<p>..........</p>
+<p>http {</p>
+<p>......</p>
+<p>    upstream myweb {</p>
+<p>        ip_hash;</p>
+<p>        server 192.168.68.50:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>        server 192.168.68.51:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>        server 192.168.68.52:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>        server 192.168.68.53:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>    }</p>
+<p>  server {</p>
+<p>        location / {</p>
+<p>            proxy_pass http://myweb;</p>
+<p>            proxy_redirect     off;</p>
+<p>            proxy_set_header   Host             $host;</p>
+<p>            proxy_set_header   X-Real-IP        $remote_addr;</p>
+<p>            client_max_body_size       10m;</p>
+<p>: }</p>
+<p>        }</p>
+<p>.........</p>
+<p>   }</p>
+<p>}</p>
+<p>[root@dispatch103 ~]# ss -tunlp | grep :80</p>
+<p>tcp    LISTEN    0      128      *:80                    *:*                  users:(("nginx",pid=1270,fd=6),("nginx",pid=1269,fd=6))</p>
+<p>[root@dispatch103  ~]# echo '/usr/local/nginx/sbin/nginx' &gt;&gt; /etc/rc.local</p>
+<p>[root@dispatch103  ~]# chmod +x /etc/rc.local</p>
+</blockquote><p><b>3.3安装mysql</b></p><p><b>1）103,110,111,112都这样配置</b></p><blockquote>
+<p>[root@mysql102 iso]# wget https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@mysql102 iso]# ls</p>
+<p>mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@mysql102 iso]# tar -xvf mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@mysql102 iso]# yum -y install *.rpm</p>
+<p>[root@mysql102 iso]# systemctl restart mysqld</p>
+<p>[root@mysql102 iso]# systemctl stop mysqld</p>
+<p>[root@mysql102 iso]# rm -rf   /var/lib/mysql/*</p>
+<p>[root@mysql102 iso]# scp -r 192.168.68.50:/var/lib/mysql/*   /var/lib/mysql/</p>
+<p>[root@mysql102  ~]# mv /var/lib/mysql/auto.cnf /var/lib/mysql/auto.cnf.bak</p>
+<p>[root@mysql102 iso]# chown -R mysql:mysql  /var/lib/mysql/</p>
+</blockquote><p><b>2）主库配置mysql102</b></p><blockquote>
+<p>[root@mysql102 iso]# vim /etc/my.cnf</p>
+<p>......</p>
+<p>[mysqld]</p>
+<p>character_set_server=utf8</p>
+<p>log_bin=master102</p>
+<p>server_id=1</p>
+<p>binlog_format="mixed"</p>
+<p>........</p>
+<p>[root@mysql102 iso]# systemctl restart mysqld</p>
+<p>[root@mysql102 iso]# ss -tunlp | grep :3306</p>
+<p>tcp    LISTEN     0      80       :::3306                 :::*                   users:(("mysqld",pid=23295,fd=22))</p>
+<p>[root@mysql102 ~]# mysql -uroot -pLuojun666.com522527</p>
+<p>mysql&gt; show master status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master102.000001</p>
+<p>         Position: 154</p>
+<p>     Binlog_Do_DB:</p>
+<p> Binlog_Ignore_DB:</p>
+<p>Executed_Gtid_Set:</p>
+<p>1 row in set (0.00 sec)</p>
+<p>ERROR:</p>
+<p>No query specified</p>
+<p>mysql&gt; grant replication slave on *.* to repluser@'%' identified by 'Repluser.com522527';;</p>
+</blockquote><p><b>3）从库配置以110为例,111-113一样</b></p><blockquote>
+<p>[root@mysql110 ~]# vim /etc/my.cnf</p>
+<p>....</p>
+<p>[mysqld]</p>
+<p>character_set_server=utf8</p>
+<p>server_id=2            #111配置3;112配置4，不可以重复</p>
+<p>......</p>
+<p>[root@mysql110 ~]# systemctl restart mysqld</p>
+<p>[root@mysql110 ~]# mysql -uroot -pLuojun666.com522527</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host='192.168.68.102',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='Repluser.com522527',</p>
+<p>    -&gt; master_log_file=' master102.000001',</p>
+<p>    -&gt; master_log_pos=441;</p>
+<p>mysql&gt; start slave;</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.68.102</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master102.000002</p>
+<p>          Read_Master_Log_Pos: 154</p>
+<p>               Relay_Log_File: web50-relay-bin.000003</p>
+<p>                Relay_Log_Pos: 320</p>
+<p>        Relay_Master_Log_File: master102.000002</p>
+<p>             Slave_IO_Running: Yes                            #这个ok就可以了</p>
+<p>            Slave_SQL_Running: Yes                          #这个ok就可以了</p>
+<p>..............</p>
+<p>mysql&gt;exit</p>
+</blockquote><p><b>3.4<a href="https://mariadb.com/kb/en/maxscale-23-getting-started/" target="_blank">安装maxscale</a></b></p><p><a href="https://mariadb.com/downloads/#mariadb_platform-mariadb_maxscale" target="_blank">maxscale</a> 链接：https://pan.baidu.com/s/1cEyNxe9JA_cidYLU-RN6XQ  提取码：392g</p><blockquote>
+<p>[root@maxscale10 iso]# ls</p>
+<p>maxscale-2.3.6-1.centos.7.x86_64.rpm</p>
+<p>[root@maxscale10 iso]# yum -y install maxscale-2.3.6-1.centos.7.x86_64.rpm</p>
+<p>[root@maxscale10 ~]# vim /etc/maxscale.cnf</p>
+<p>[maxscale]</p>
+<p>threads=auto</p>
+<p>[server1]</p>
+<p>type=server</p>
+<p>address=192.168.68.102</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[server2]</p>
+<p>type=server</p>
+<p>address=192.168.68.110</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[server3]</p>
+<p>type=server</p>
+<p>address=192.168.68.110</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[server4]</p>
+<p>type=server</p>
+<p>address=192.168.68.110</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[MariaDB-Monitor]</p>
+<p>type=monitor</p>
+<p>#module=mariadbmon</p>
+<p>module=mysqlmon</p>
+<p>servers=server1, server2, server3, server4</p>
+<p>user=scalemon</p>
+<p>password=Scalemon.com522527</p>
+<p>monitor_interval=2000</p>
+<p>detect_stale_master=true</p>
+<p>#[Read-Only-Service]</p>
+<p>#type=service</p>
+<p>#router=readconnroute</p>
+<p>#servers=server1</p>
+<p>#user=myuser</p>
+<p>#password=mypwd</p>
+<p>#router_options=slave</p>
+<p>[Read-Write-Service]</p>
+<p>type=service</p>
+<p>router=readwritesplit</p>
+<p>servers=server1, server2, server3, server4</p>
+<p>user=pliadmin</p>
+<p>password=Pliadmin.com522527</p>
+<p>max_slave_connections=100%</p>
+<p>[MaxAdmin-Service]</p>
+<p>type=service</p>
+<p>router=cli</p>
+<p>#[Read-Only-Listener]</p>
+<p>#type=listener</p>
+<p>#service=Read-Only-Service</p>
+<p>#protocol=MariaDBClient</p>
+<p>#port=4008</p>
+<p>[Read-Write-Listener]</p>
+<p>type=listener</p>
+<p>service=Read-Write-Service</p>
+<p>protocol=MariaDBClient</p>
+<p>port=3306</p>
+<p>[MaxAdmin-Listener]</p>
+<p>type=listener</p>
+<p>service=MaxAdmin-Service</p>
+<p>protocol=maxscaled</p>
+<p>socket=default</p>
+</blockquote><p><b>3.5添加授权</b></p><p><b>1）在主库操作（在102主机操作），丛库自动同步</b></p><blockquote>
+<p>[root@mysql102 ~]# mysql -uroot -pLuojun666.com522527</p>
+<p>mysql&gt; grant all on bbsdb.* to BBSuser@'%' identified by 'Bbsuser.com522527';</p>
+<p>mysql&gt;  grant replication slave,replication client on *.* to scalemon@'%' identified by 'Scalemon.com522527';</p>
+<p>mysql&gt; grant select on mysql.* to pliadmin@'%' identified by 'Pliadmin.com522527';</p>
+<p>mysql&gt; select user,host from mysql.user;</p>
+<p>+---------------+-----------+</p>
+<p>| user          | host      |</p>
+<p>+---------------+-----------+</p>
+<p>| BBSuser       | %         |</p>
+<p>| pliadmin      | %         |</p>
+<p>| repluser      | %         |</p>
+<p>| scalemon      | %         |</p>
+<p>| bbsuser       | localhost |</p>
+<p>| mysql.session | localhost |</p>
+<p>| mysql.sys     | localhost |</p>
+<p>| root          | localhost |</p>
+</blockquote><p><b>2）丛库查看110,111,112</b></p><blockquote>
+<p>mysql&gt; select user,host from mysql.user;</p>
+<p>+---------------+-----------+</p>
+<p>| user          | host      |</p>
+<p>+---------------+-----------+</p>
+<p>| BBSuser       | %         |</p>
+<p>| pliadmin      | %         |</p>
+<p>| scalemon      | %         |</p>
+<p>| bbsuser       | localhost |</p>
+<p>| mysql.session | localhost |</p>
+<p>| mysql.sys     | localhost |</p>
+<p>| root          | localhost |</p>
+</blockquote><p><b>3.6启动maxscale</b></p><blockquote>
+<p>[root@maxscale10 ~]# systemctl restart maxscale   或者 maxscale -f /etc/maxscale.cnf</p>
+<p>[root@maxscale10 ~]# systemctl enablemaxscale</p>
+<p>[root@maxscale10 ~]# ss -tunlp | grep maxscale</p>
+<p>tcp    LISTEN     0      128    127.0.0.1:8989                  *:*                   users:(("maxscale",pid=3421,fd=22))</p>
+<p>tcp    LISTEN     0      128      :::3306                 :::*                   users:(("maxscale",pid=3421,fd=19))</p>
+<p>##maxscale验证</p>
+<p>[root@maxscale10 ~]# maxadmin</p>
+<p>MaxScale&gt; list servers</p>
+<p>Servers.</p>
+<p>-------------------+-----------------+-------+-------------+--------------------</p>
+<p>Server             | Address         | Port  | Connections | Status             </p>
+<p>-------------------+-----------------+-------+-------------+--------------------</p>
+<p>server1            | 192.168.68.102  |  3306 |           0 | Master, Running</p>
+<p>server2            | 192.168.68.110   |  3306 |           0 | Slave, Running</p>
+<p>server3            | 192.168.68.111  |  3306 |          0 | Slave, Running</p>
+<p>server4            | 192.168.68.112  |  3306 |          0 | Slave, Running</p>
+<p>-------------------+-----------------+-------+-------------+--------------------</p>
+</blockquote><p><b>3.7数据库测试连接</b></p><blockquote>
+<p>[root@mysql102 ~]#  mysql -uBBSuser -pBbsuser.com522527 -P3306 -h192.168.68.10</p>
+<p>mysql&gt; show databases;</p>
+<p>+--------------------+</p>
+<p>| Database           |</p>
+<p>+--------------------+</p>
+<p>| information_schema |</p>
+<p>| bbsdb              |</p>
+<p>+--------------------+</p>
+<p>2 rows in set (0.00 sec)</p>
+</blockquote><p><b>3.8修改web中discuz数据库配置文件</b></p><p><b>1）第一个文件<br></b></p><blockquote>
+<p>[root@web50 ~]# cd /usr/local/nginx/html/</p>
+<p>[root@web50 html]# vim config/config_global.php</p>
+<p>// ----------------------------  CONFIG DB  ----------------------------- //</p>
+<p>$_config['db']['1']['dbhost'] = '192.168.68.103';</p>
+<p>$_config['db']['1']['dbuser'] = 'BBSuser';</p>
+<p>$_config['db']['1']['dbpw'] = 'Bbsuser.com522527';</p>
+<p>$_config['db']['1']['dbcharset'] = 'utf8';</p>
+<p>$_config['db']['1']['pconnect'] = '0';</p>
+<p>$_config['db']['1']['dbname'] = 'bbsdb';</p>
+<p>.......</p>
+</blockquote><p><b>2）第二个文件</b></p><blockquote>
+<p>[root@web50 html]# vim uc_server/data/config.inc.php</p>
+<p>define('UC_DBHOST', '192.168.68.103');</p>
+<p>define('UC_DBUSER', 'BBSuser');</p>
+<p>define('UC_DBPW', 'Bbsuser.com522527');</p>
+<p>define('UC_DBNAME', 'bbsdb');</p>
+<p>define('UC_DBCHARSET', 'utf8');</p>
+<p>.......</p>
+</blockquote><p><b>3）第三个文件</b></p><blockquote>
+<p>[root@web50 html]# vim config/config_ucenter.php</p>
+<p>.......</p>
+<p>define('UC_DBHOST', '192.168.68.103');</p>
+<p>define('UC_DBUSER', 'BBSuser');</p>
+<p>define('UC_DBPW', 'Bbsuser.com522527');</p>
+<p>define('UC_DBNAME', 'bbsdb');</p>
+<p>define('UC_DBCHARSET', 'utf8');</p>
+<p>........</p>
+</blockquote><p><b>4）同步文件给web51,52,53</b></p><blockquote>
+<p>[root@web50 html]# yum -y install rsync</p>
+<p>[root@web50 html]# for i in 51 52 53</p>
+<p>&gt; do</p>
+<p>&gt; rsync -ar /usr/local/nginx/html/ 192.168.68.$i:/usr/local/nginx/html/</p>
+<p>&gt; done</p>
+</blockquote><h4>第四节测试</h4><p>在浏览器上输入http://192.168.68.103</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-7d67b9aa313fe89c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>总结</h4><p>本次教程和<a href="https://www.jianshu.com/p/49e6af9ec56a" target="_blank">lnmp搭建(discuz单机版)</a>是有关联的，是<a href="https://www.jianshu.com/p/49e6af9ec56a" target="_blank">lnmp搭建(discuz单机版)</a>的升级版，虽然本次架构挺不错了，不过存在单点故障，下一节lnmp搭建(discuz高可用版)会解决此问题</p><p><b>温馨提示：</b></p><p>做实验时，每一台服务器都要关闭防火墙，禁用selinux！！！！</p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-aa94414bcddbfafa.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：<br></b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

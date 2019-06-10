@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nginx安全</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">nginx安全</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-bcdf6e8b069b01c8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>1，隐藏版本号</b></p><blockquote>
+<p>1）http {—}里加上server_tokens off;</p>
+<p>[root@mypc-8 /]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>http {</p>
+<p>    include       mime.types;</p>
+<p>    default_type  application/octet-stream;</p>
+<p>    server_tokens off;                             #关闭版本号显示</p>
+<p>2)编辑php-fpm配置文件，如fastcgi.conf或fcgi.conf（这个配置文件名也可以自定义的，根据具体文件名修改）：</p>
+<p>找到：</p>
+<p>fastcgi_param SERVER_SOFTWARE nginx/$nginx_version;</p>
+<p>改为：</p>
+<p>fastcgi_param SERVER_SOFTWARE nginx;</p>
+<p>3)重新加载nginx配置</p>
+<p>[root@mypc-8 /]# nginx -s reload</p>
+</blockquote><p><b>2，基于源代码（变更版本号和版本名使其更具有迷惑效果）</b></p><blockquote>
+<p>编译nginx时先修改源码</p>
+<p># vim /opt/nginx-1.12.0/src/core/nginx.h     //修改源码文件</p>
+<p>#define nginx_version      1012000</p>
+<p>#define NGINX_VERSION      "1.12.2"</p>
+<p>#define NGINX_VER          "IIS/" NGINX_VERSION　　　　　　　　#伪装成IIS服务器</p>
+<p>//更改版本号，注意不用取消井号！</p>
+<p># cd /opt/nginx-1.12.0/</p>
+<p>./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_stub_status_module &amp;&amp; make &amp;&amp; make install</p>
+<p>//编译安装</p>
+<p># vim /usr/local/nginx/conf/nginx.conf     //把之前的server_tokens off;改成on</p>
+<p># service nginx reload          //重启服务</p>
+<p># curl -I http://192.168.116.133     //检测结果</p>
+</blockquote><p><b>总结</b></p><p>以上2种都可以提高nginx服务器的安全，使用哪一种看个人喜欢了。</p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-ad7f8aa99fbbe4ec.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption">1</div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

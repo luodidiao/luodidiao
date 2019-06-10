@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lnmp搭建(discuz单机版)</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">lnmp搭建(discuz单机版)</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-71c9b3934d3884ce.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>第一节需求</b></p><p>业务量太少，部署的服务都在一台机器上，部署方式：LNMP，测试项目代码以论坛discuz为例。discuz下载：<a href="https://gitee.com/ComsenzDiscuz/DiscuzX" target="_blank">https://gitee.com/ComsenzDiscuz/DiscuzX</a></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-66bf7959d9b2cbda.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>第二节工具准备</b></p><blockquote>
+<p><a href="https://www.centos.org/download/" target="_blank">linux</a> ==&gt;CentOS Linux release 7.4.1708 (Core)</p>
+<p><a href="https://www.php.net/downloads.php" target="_blank">php</a> ==&gt; php-5.4.16</p>
+<p><a href="http://nginx.org/en/download.html" target="_blank">nginx</a> ==&gt;nginx-1.12.2</p>
+<p><a href="https://dev.mysql.com/downloads/mysql/" target="_blank">mysql</a> ==&gt;mysql-5.7.26</p>
+<p><a href="https://gitee.com/ComsenzDiscuz/DiscuzX" target="_blank">discuz</a> ==&gt;Discuz!X3.4</p>
+</blockquote><p><b>第三节实战操作</b></p><p><b>前提:</b></p><blockquote>
+<p>[root@web50 iso]# yum -y install epel-realease</p>
+<p>[root@web50 iso]# vim /etc/selinux/config</p>
+<p>SELINUX=disabled</p>
+<p>[root@web50 iso]# systemctl stop firewalld</p>
+<p>[root@web50 iso]# systemctl disable firewalld</p>
+<p>[root@web50 iso]#yum  -y install iptables-services</p>
+<p>[root@web50 iso]# iptables -F</p>
+<p>[root@web50 iso]# service iptables save</p>
+</blockquote><p><b>3.1安装<a href="https://www.php.net/downloads.php" target="_blank">php</a></b></p><blockquote>
+<p>[root@web50 ~]# useradd -s /sbin/nologin nginx</p>
+<p>[root@web50~]# yum -y install epel-release</p>
+<p>[root@web50~]# yum -y install libmcrypt-devel mhash-devel libxslt-devel libjpeg libjpeg-devel libpng libpng-devel freetype freetype-devel libxml2 libxml2-devel zlib zlib-devel glibc glibc-devel glib2 glib2-devel bzip2 bzip2-devel ncurses ncurses-devel curl curl-devel e2fsprogs e2fsprogs-devel krb5 krb5-devel libidn libidn-devel openssl openssl-devel libzip</p>
+<p>[root@web50 iso]# yum -y install php php-mysql php-fpm</p>
+<p>[root@web50 iso]# vim /etc/php-fpm.d/www.conf</p>
+<p>......</p>
+<p>user = nginx</p>
+<p>group = nginx</p>
+<p>.......</p>
+<p>[root@web50 iso]# systemctl start php-fpm</p>
+<p>[root@web50 etc]# ss -tunlp | grep :9000</p>
+<p>tcp    LISTEN     0      128    127.0.0.1:9000                  *:*                   users:(("php-fpm",pid=23108,fd=5),("php-fpm",pid=23107,fd=5),("php-fpm",pid=23106,fd=7))</p>
+</blockquote><p><b>3.2安装<a href="http://nginx.org/en/download.html" target="_blank">nginx</a></b></p><blockquote>
+<p>[root@web50~]# yum -y install gcc automake autoconf libtool make gcc gcc-c++ glibc</p>
+<p>[root@web50~]# yum -y install zlib-devel openssl-devel pcre-devel </p>
+<p>[root@web50~]# curl -O http://nginx.org/download/nginx-1.12.2.tar.gz</p>
+<p> [root@web50 nginx-1.12.2]# # tar -xvf nginx-1.12.2.tar.gz</p>
+<p>[root@web50 nginx-1.12.2]# ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_ssl_module --with-http_stub_status_module</p>
+<p>[root@web50 nginx-1.12.2]# make &amp;&amp; make install</p>
+<p>[root@web50 ~]# ln -s /usr/local/nginx/sbin/nginx /sbin/   </p>
+<p>[root@web50 ~]# cd /usr/local/nginx/</p>
+<p>[root@web50 nginx]# vim conf/nginx.conf</p>
+<p>..........</p>
+<p>        location / {</p>
+<p>            root   html;</p>
+<p>            index  index.php index.html index.htm;</p>
+<p>        }</p>
+<p>        location ~ \.php$ {</p>
+<p>            root           html;</p>
+<p>            fastcgi_pass   127.0.0.1:9000;</p>
+<p>            fastcgi_index  index.php;</p>
+<p>        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;</p>
+<p>            include        fastcgi.conf;</p>
+<p>        }</p>
+<p>.........</p>
+<p>[root@web50 nginx]# echo '&lt;?php echo phpinfo();?&gt;' &gt;/usr/local/nginx/html/test.php</p>
+<p>浏览器:http://192.168.68.50/test.php</p>
+<p><br></p>
+</blockquote><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-cbcafd2408b54281.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>3.3安装<a href="https://dev.mysql.com/downloads/mysql/" target="_blank">mysql</a></b></p><blockquote>
+<p>[root@web50 iso]# wget https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@web50 iso]# ls</p>
+<p>mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@web50 iso]# tar -xvf mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@web50 iso]# yum -y install *.rpm</p>
+<p>[root@web50 iso]# vim /etc/my.cnf</p>
+<p>......</p>
+<p>[mysqld]</p>
+<p>character_set_server=utf8</p>
+<p>........</p>
+<p>[root@web50 iso]# systemctl restart mysqld</p>
+<p>[root@web50 iso]# ss -tunlp | grep :3306</p>
+<p>tcp    LISTEN     0      80       :::3306                 :::*                   users:(("mysqld",pid=23295,fd=22))</p>
+<p>[root@web50 iso]# grep "password" /var/log/mysqld.log</p>
+<p>2019-05-12T09:46:19.130622Z 1 [Note] A temporary password is generated for root@localhost: zeY(w=Hgl4eE</p>
+<p>[root@web50 iso]# mysql -uroot -p'zeY(w=Hgl4eE'</p>
+<p>mysql&gt; alter user user() identified by 'Luojun666.com522527';</p>
+<p>mysql&gt; create database bbsdb;</p>
+<p>Query OK, 0 rows affected (0.00 sec)</p>
+<p>mysql&gt; grant all on bbsdb.* to bbsuser@localhost identified by 'Bbsdb.com522527';</p>
+<p>Query OK, 0 rows affected, 1 warning (0.01 sec)</p>
+<p>mysql&gt; flush privileges;</p>
+<p>Query OK, 0 rows affected (0.00 sec)</p>
+<p>mysql&gt; quit</p>
+</blockquote><p><b>3.4安装<a href="https://gitee.com/ComsenzDiscuz/DiscuzX" target="_blank">discuz</a></b></p><blockquote>
+<p>[root@web50 ~]# yum -y install git</p>
+<p>[root@web50 iso]# git clone https://gitee.com/ComsenzDiscuz/DiscuzX.git</p>
+<p>[root@web50 iso]# ls</p>
+<p>DiscuzX</p>
+<p>[root@web50 iso]# cp -rf DiscuzX/upload/*  /usr/local/nginx/html/</p>
+<p>[root@web50 iso]# cd /usr/local/nginx/html/</p>
+<p>[root@web50 html]# chown -R nginx:nginx /usr/local/nginx/html/</p>
+</blockquote><p>浏览器访问<a href="http://192.168.68.50/install/index.php" target="_blank">http://192.168.68.50/install/index.php</a>，按如下步骤</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-217a883ba6998d38.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-5b0b22e654e10f99.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-1848650dd161c706.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-2d4fab27b45b5746.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-0abed9b0e0a61d49.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-ba7c9043f37a9371.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><br></p><p><b>总结</b></p><p>本次教程主要实操搭建lnmp的环境，实战discuz论坛搭建，该架构缺点明显</p><p>1，承受的访问量很少</p><p>2，安全性，可靠性太低</p><p>下一篇<a href="https://www.jianshu.com/p/ac6acb4edf7d" target="_blank">lnmp搭建（discuz集群版）</a>，就解决了以上问题。</p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3f6431fe2dcaed16.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

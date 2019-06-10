@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mysql主从同步</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">mysql主从同步</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-7581085a6932ca27.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>第一节基础</h4><p><b>1，主从同步原理</b></p><p><b>1）master,记录数据更改操作</b></p><p>启用binlog日志</p><p>设置binlog日志格式</p><p>设置server_id</p><p><br></p><p><b>２）slave运行2个线程</b></p><p>Slave_io：复制master主机binlog日志文件里的sql到本机的relay-log文件里</p><p>Slave_sql:执行本机relay_log文件里的sql语句，重现master的数据操作</p><p>主从同步原理图：</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-e34b898e3c0f1adc.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>2，构建主从同步</b></p><p><b>１）基本思路</b></p><p>确保数据相同：从库必须要有主库上的数据</p><p>配置主服务器：启用binlog日志，授权用户，查看当前正在使用的日志</p><p>配置从服务器：设置server_id（唯一），指定主库信息</p><p>测试配置：客户端连接主库写入数据，在从库上也能查询到</p><p><b>２）确保数据一致</b></p><p>Masterr服务器</p><p>备份所有库</p><p>Slave服务器</p><p>清空同名库（如果有的话）</p><p>离线导入由master提供的备份</p><p><br></p><p>Server_id n            #1~255</p><p>提示：Relay-log是中继日志文件</p><h4>第二节主从mysql实战</h4><p><b>注意注意！！！！！！</b></p><p><b>每一台服务器前期准备:</b></p><blockquote>
+<p>[root@dispatch104 iso]# yum -y install epel-realease</p>
+<p>[root@dispatch104 iso]# vim /etc/selinux/config</p>
+<p>SELINUX=disabled</p>
+<p>[root@dispatch104 iso]# systemctl stop firewalld</p>
+<p>[root@dispatch104 iso]# systemctl disable firewalld</p>
+<p>[root@dispatch104 iso]#yum  -y install iptables-services</p>
+<p>[root@dispatch104 iso]# iptables -F</p>
+<p>[root@dispatch104 iso]# service iptables save</p>
+</blockquote><p><b>1，安装</b></p><blockquote>
+<p>[root@mysql-51 iso]# wget https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@mysql-51 iso]# ls</p>
+<p>mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@mysql-51 iso]# tar -xvf mysql-5.7.26-1.el7.x86_64.rpm-bundle.tar</p>
+<p>[root@mysql-51 iso]# yum -y install *.rpm</p>
+</blockquote><p><b>2，基本配置</b></p><blockquote>
+<p>[root@mysql-51 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>log_bin=master51</p>
+<p>server_id=51　　　#mysql主从里，id必须唯一，范围：1~255</p>
+<p>binlog_format="mixed"</p>
+<p>[root@mysql-51 ~]# systemctl restart mysqld   #重启刷新文件配置</p>
+<p>mysql&gt; show master status\G; #查看主库master状态，查看当前使用的binlog日志文件</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master51.000001</p>
+<p>         Position: 441</p>
+<p>     Binlog_Do_DB:</p>
+<p> Binlog_Ignore_DB:</p>
+<p>Executed_Gtid_Set:</p>
+<p>1 row in set (0.00 sec)</p>
+<p>mysql&gt; grant replication slave on *.* to repluser@'%' identified by '123456'; #授权给从服务器，单个数据库授权无效，必须设置*.*</p>
+</blockquote><p><b>２）配置从服务器</b></p><blockquote>
+<p>mysql&gt; show slave status;　　　#查看从库信息</p>
+<p>mysql&gt; show master status;       #查看binlog日志，查看主库信息</p>
+<p>[root@mysql-52 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>server_id=52　　　　　#从库id，要唯一</p>
+<p>[root@mysql-52 ~]# systemctl restart mysqld</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host='192.168.4.51',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>-&gt; master_log_file='master51.000001',　　#与主库binlog日志名相同</p>
+<p>-&gt; master_log_pos=441;　　　　#偏移量，与主库相同</p>
+<p>提示：任意参数指定不对，io线程读取不了信息</p>
+<p>mysql&gt; start slave;　　　　#启动slave(io,sql线程)</p>
+<p>mysql&gt; show slave stattus\G;</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.4.51</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master51.000001</p>
+<p>Read_Master_Log_Pos: 441</p>
+<p>               Relay_Log_File: mysql-52-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 319</p>
+<p>        Relay_Master_Log_File: master51.000001</p>
+<p>Slave_IO_Running: Yes             #看到yes就成功了</p>
+<p>Slave_SQL_Running: Yes　　　#ok了</p>
+<p>          ........</p>
+<p><br></p>
+<p>提示：sql线程在执行中继日志的sql命令时，一旦出错，sql线程立即停止</p>
+<p>方案：停掉slave，在从库新建相关表,重启slave</p>
+</blockquote><p><b>3）测试配置</b></p><p>在master上操作数据</p><blockquote>
+<p>mysql&gt; create database db1;　　　#新建测试数据库</p>
+<p>mysql&gt; create table db1.t1(id int );　　#新建测试表</p>
+<p>mysql&gt; grant select,insert on db1.* to rose@'%' identified by '123456';　#给客户端授予相应权限</p>
+<p><br></p>
+</blockquote><p><b>在client上插入数据</b></p><blockquote>
+<p>[root@mysql-50 ~]# mysql -h192.168.4.51 -urose -p123456#连接master主库</p>
+<p>mysql&gt; show grants;　　　#查看自己的权限</p>
+<p>mysql&gt; use db1;　　　　　#切换库</p>
+<p>mysql&gt; show tables;　　　#查看表</p>
+<p>mysql&gt; desc t1;　　　　　#查看表结构</p>
+<p>mysql&gt; insert into t1 values(1);　　　#插入验证数据</p>
+<p>mysql&gt; insert into t1 values(２);</p>
+</blockquote><p><b>在slave上查看</b></p><blockquote>
+<p>mysql&gt; show databases;　　#查看数据库</p>
+<p>+--------------------+</p>
+<p>| Database           |</p>
+<p>+--------------------+</p>
+<p>| information_schema |</p>
+<p>| db1                |　　　　　　　　　#多了数据库db1</p>
+<p>mysql&gt; select * from db1.t1;       #查看数据，验证成功</p>
+<p>+------+</p>
+<p>| id   |</p>
+<p>+------+</p>
+<p>|    1 |</p>
+<p>|    2 |</p>
+<p>+------+</p>
+<p>2 rows in set (0.01 sec)</p>
+</blockquote><p><b>４）主从库配置选项</b></p><p>从库相关文件</p><p>Master.info　　　    　主库信息</p><p>Relay-log.info　　　 中继日志信息</p><p>主机名-relay-bin.xxxx　　　 中继日志</p><p>主机名-relay-bin.index　　　索引文件</p><p>提示：删除掉这几个文件，重启就还原了</p><p>例子：</p><blockquote>
+<p>[root@mysql-52 mysql]# rm -rf mysql-52-relay-bin.*</p>
+<p>[root@mysql-52 mysql]# rm -rf master.info</p>
+<p>[root@mysql-52 mysql]# rm -rf relay-log.info</p>
+<p>[root@mysql-52 mysql]# systemctl restart mysqld</p>
+<p>[root@mysql-52 mysql]# mysql -uroot -p123456 -e "show slave status"　#无数据输出，说明已经不是从库</p>
+</blockquote><p><b>主库配置选项（对所有从库有效）</b></p><p>Binlog_do_db=name设置master对哪些库记日志</p><p>Binlog_ignore_db=name　　设置master对哪些库不记日志</p><p>例子：</p><blockquote>
+<p>[root@mysql-51 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>binlog_do_db=db1, db2, db3记录哪些库</p>
+<p>#binlog_ignore_db=db9　　　不记录哪些库</p>
+<p>mysql&gt; show master status\G</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master51.000003</p>
+<p>         Position: 154</p>
+<p>     Binlog_Do_DB: db1,db2,db3</p>
+<p> Binlog_Ignore_DB:</p>
+<p>Executed_Gtid_Set:</p>
+<p>1 row in set (0.00 sec)</p>
+</blockquote><p><b>从库配置选项（只对slave服务器有效）</b></p><p>Log_slave_update　　　记录从库更新，允许链式复制（a-b-c）</p><p>Relay_log=dbsvr2-relay-bin指定中继日志文件名</p><p>Replicate_do_db=mysql仅复制指定库，其他库将被忽略，此选项可设置多条</p><p>Replicate_ignore_d=test　　　不复制哪些库，其他库将被忽略</p><p><br></p><p>例子：</p><blockquote>
+<p>[root@mysql-52 mysql]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>replicate_do_db=db1,db2</p>
+<p>#replicate_ignore_do=db3</p>
+<p>[root@mysql-52 mysql]# systemctl restart mysqld</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.4.51</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master51.000003</p>
+<p>          Read_Master_Log_Pos: 154</p>
+<p>               Relay_Log_File: mysql-52-relay-bin.000007</p>
+<p>                Relay_Log_Pos: 319</p>
+<p>        Relay_Master_Log_File: master51.000003</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+<p>Replicate_Do_DB: db1,db2　　　#允许仅复制指定库</p>
+<p>          Replicate_Ignore_DB:</p>
+<p>           Replicate_Do_Table:</p>
+<p>       Replicate_Ignore_Table:</p>
+</blockquote><h4>第三<b>节主从同步模式</b><br>
+</h4><p><b>－－结构模式</b></p><p>基本应用</p><p>单向复制：主－－＞从</p><p>扩展应用</p><p>链式复制:主－－＞从－－＞从　　　＃主从从</p><p>互为主从：主＜－－＞主　　　#不能同时被访问，不能单独使用</p><p>一主多从：从＜－－主－－＞从</p><p><b>１）一主多从</b></p><blockquote>
+<p>[root@mysql-51 ~]# mysqldump -uroot -p123456 db1 &gt; db1.sql</p>
+<p>[root@mysql-51 ~]# scp db1.sql 192.168.4.53:/root</p>
+<p>mysql&gt; create database db1;　　　　#53主机</p>
+<p>mysql&gt; source /root/db1.sql;　　　　#可以直接执行sql语句</p>
+<p>[root@mysql-53 ~]# mysql -uroot -p123456 db1 &lt;  db1.sql</p>
+<p>[root@mysql-53 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>server_id=53</p>
+<p>[root@mysql-53 ~]# systemctl restart mysqld</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host="192.168.4.51",</p>
+<p>    -&gt; master_user="repluser",</p>
+<p>    -&gt; master_password="123456",</p>
+<p>    -&gt; master_log_file="master51.000005",</p>
+<p>    -&gt; master_log_pos=574;</p>
+<p>mysql&gt; start slave;</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.4.51</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master51.000005</p>
+<p>          Read_Master_Log_Pos: 574</p>
+<p>               Relay_Log_File: mysql-53-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 319</p>
+<p>        Relay_Master_Log_File: master51.000005</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+</blockquote><p><b>２）主从从</b></p><p>#延续上面的实验</p><blockquote>
+<p>[root@mysql-52 mysql]# vim /etc/my.cnf　　　#设置52即为从又为主库</p>
+<p>[mysqld]</p>
+<p>log_bin=master52</p>
+<p>binlog_format="mixed"</p>
+<p>server_id=52</p>
+<p>Log_slave_updates                           #记录从库更新，允许链式复制</p>
+<p>[root@mysql-52 mysql]# systemctl restart mysqld</p>
+<p>mysql&gt; show master status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master52.000001</p>
+<p>         Position: 154</p>
+<p>     Binlog_Do_DB:</p>
+<p> Binlog_Ignore_DB:</p>
+<p>Executed_Gtid_Set:</p>
+<p>1 row in set (0.00 sec)</p>
+<p>mysql&gt; grant replication slave on *.* to repluuser@'%'</p>
+<p>    -&gt; identified by '123456';</p>
+</blockquote><p><b>配置53的主库是52</b></p><blockquote>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host="192.168.4.52",</p>
+<p>    -&gt; master_user="repluser",</p>
+<p>    -&gt; master_password="123456",</p>
+<p>    -&gt; master_log_file='master52.000001',</p>
+<p>    -&gt; master_log_pos=442;</p>
+<p>mysql&gt; start slave;</p>
+<p>注意：</p>
+<p>Slave-io线程读取主库中binlog日志放入中继日志(relay-log)，slave-sql线程在执行中继日志的语句时是不写入binlog日志中，需要添加Log_slave_updates才能写入binlog日志中</p>
+</blockquote><p><b>３）互为主从</b></p><p>主机54：</p><blockquote>
+<p>[root@mysql-54 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>log_bin=master54</p>
+<p>server_id=54</p>
+<p>binlog_format="mixed"</p>
+<p>[root@mysql-54 ~]# systemctl restart mysqld</p>
+<p>mysql&gt; grant replication slave on *.* to masteruser@'%' identified by '123456';</p>
+<p>mysql&gt; show master status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master54.000001</p>
+<p>         Position: 443</p>
+<p>．．．．</p>
+<p>mysql&gt; change master to \</p>
+<p>    -&gt; master_host='192.168.4.55',</p>
+<p>    -&gt; master_user='masteruser2',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>    -&gt; master_log_file='master55.000001',</p>
+<p>    -&gt; master_log_pos=444;</p>
+<p>mysql&gt; start slave;</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.4.55</p>
+<p>                  Master_User: masteruser2</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master55.000001</p>
+<p>          Read_Master_Log_Pos: 444</p>
+<p>               Relay_Log_File: mysql-54-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 319</p>
+<p>        Relay_Master_Log_File: master55.000001</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+<p><br></p>
+</blockquote><p>主机55：</p><blockquote>
+<p>[root@mysql-55 ~]# vim /etc/my.cnf</p>
+<p>[root@mysql-55 ~]# systemctl restart mysqld</p>
+<p>mysql&gt; grant replication slave on *.* to masteruser2@'%' identified by '123456';</p>
+<p>mysql&gt; show master status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master55.000001</p>
+<p>         Position: 444</p>
+<p>．．．．．</p>
+<p>mysql&gt; change master to\</p>
+<p>    -&gt; master_host="192.168.4.54",</p>
+<p>    -&gt; master_user="masteruser",</p>
+<p>    -&gt; master_password="123456",</p>
+<p>    -&gt; master_log_file='master54.000001',</p>
+<p>    -&gt; master_log_pos=443;</p>
+<p>mysql&gt; start slave;</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.4.54</p>
+<p>                  Master_User: masteruser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master54.000001</p>
+<p>          Read_Master_Log_Pos: 595</p>
+<p>               Relay_Log_File: mysql-55-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 471</p>
+<p>        Relay_Master_Log_File: master54.000001</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+<p>              Replicate_Do_DB:</p>
+<p>          Replicate_Ignore_DB:</p>
+<p>           Replicate_Do_Table:</p>
+<p>       Replicate_Ignore_Table:</p>
+<p><br></p>
+</blockquote><p><b>测试：</b></p><p>在54操作－－＞在55验证</p><p>54主机</p><blockquote>
+<p>mysql&gt; create database db1;</p>
+<p>mysql&gt; create table db1.t1(id int);</p>
+<p>mysql&gt; insert into db1.t1 values(54);</p>
+</blockquote><p>55主机</p><blockquote>
+<p>mysql&gt; select * from db1.t1;</p>
+<p>+------+</p>
+<p>| id   |</p>
+<p>+------+</p>
+<p>|   54 |</p>
+</blockquote><p>在55操作数据－－＞在54验证</p><p>55主机</p><blockquote>
+<p>mysql&gt; create database db2;</p>
+<p>mysql&gt; create table db2.t2(id int);</p>
+<p>mysql&gt; insert into db2.t2 values(55);</p>
+</blockquote><p>54主机</p><blockquote>
+<p>mysql&gt; select * from db2.t2;</p>
+<p>+------+</p>
+<p>| id   |</p>
+<p>+------+</p>
+<p>|   55 |</p>
+<p><br></p>
+</blockquote><p><b>－－复制模式</b></p><p><b>１）基础</b></p><p>异步复制(Asynchronous replication)</p><p>　默认工作模式</p><p>　　主库执行完一次事务后，立即将结果返回给客户端，并不关心从库是否已经接收并处理</p><p>全同步复制( Full synchronous replication)</p><p>当主库执行完一次事务，且所有从库都执行了该事务后才返回给客户端</p><p>半同步复制(Semisynchronous replication)</p><p>介于异步复制和全同步复制之间</p><p>主库在执行完一次事务后，等待至少一个从库接收到并写入到relay log中才返回客户端</p><p><b>－－半同步复制</b></p><p>51，52主机设置：</p><p>查看是否允许动态加载模块（默认允许）</p><blockquote>
+<p>mysql&gt; show variables like "have_dynamic_loading";</p>
+<p>+----------------------+-------+</p>
+<p>| Variable_name        | Value |</p>
+<p>+----------------------+-------+</p>
+<p>| have_dynamic_loading | YES   |</p>
+<p>+----------------------+-------+</p>
+</blockquote><p>查看是否安装模块</p><blockquote>
+<p>mysql&gt; select plugin_name,plugin_status from information_schema.plugins where plugin_name like "%semi%";</p>
+<p>Empty set (0.00 sec)</p>
+</blockquote><p>命令行加载插件</p><blockquote><p>mysql&gt; install plugin rpl_semi_sync_master soname 'semisync_master.so';　mysql&gt; install plugin rpl_semi_sync_slave soname 'semisync_slave.so';</p></blockquote><p>启用半同步复制</p><blockquote>
+<p>mysql&gt; show variables like 'rpl_semi_sync_%_enabled%';</p>
+<p>mysql&gt; set global rpl_semi_sync_master_enabled=1;</p>
+<p>mysql&gt; set global rpl_semi_sync_slave_enabled=1;</p>
+<p>mysql&gt; show variables like 'rpl_semi_sync_%_enabled';</p>
+<p>+------------------------------+-------+</p>
+<p>| Variable_name                | Value |</p>
+<p>+------------------------------+-------+</p>
+<p>| rpl_semi_sync_master_enabled | ON    |</p>
+<p>| rpl_semi_sync_slave_enabled  | ON    |</p>
+<p>+------------------------------+-------+</p>
+</blockquote><p>永久设置：</p><p>[root@mysql-51 ~]# vim /etc/my.cnf</p><p>[mysqld]</p><p>plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"</p><p>rpl-semi-sync-master-enabled=1</p><p>rpl-semi-sync-slave-enabled=1</p><p>[root@mysql-51 ~]# systemctl restart mysqld</p><p><br></p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3f085b43249c1ad6.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

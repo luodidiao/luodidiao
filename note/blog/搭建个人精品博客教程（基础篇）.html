@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搭建个人精品博客教程（基础篇）</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">搭建个人精品博客教程（基础篇）</h1>
+        <div class="show-content">
+          <h1><br></h1><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-efda9539923b314e.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h1>一 工具准备</h1><p>源码：</p><p>git地址：https://github.com/luodidiao/DjangoBlog.git</p><p>物理机或云主机：</p><p>一台linux（centos7）系统的云主机</p><h1>二 实战操作</h1><h4>2.1 <b>源码下载</b>
+</h4><blockquote>
+<p>[root@VM_0_2_centos ~]# yum -y install git</p>
+<p>[root@VM_0_2_centos ~]# git clone https://github.com/luodidiao/DjangoBlog.git</p>
+<p>[root@VM_0_2_centos ~]# cd DjangoBlog/</p>
+<p>[root@VM_0_2_centos DjangoBlog]# vim DjangoBlog/settings.py</p>
+<p>DATABASES = {</p>
+<p>    'default': {</p>
+<p>        'ENGINE': 'django.db.backends.mysql',</p>
+<p>        'NAME': 'djangoblog',</p>
+<p>        'USER': 'root',</p>
+<p>        'PASSWORD': '',    #此处为密码默认为空</p>
+<p>        'HOST': 'localhost',</p>
+<p>        'PORT': 3306,</p>
+<p>        'OPTIONS': {'charset': 'utf8mb4'},</p>
+<p>    }</p>
+<p>}</p>
+</blockquote><h4>2.2，<b>nginx搭建</b>
+</h4><blockquote>
+<p>[root@VM_0_2_centos ~]# yum -y install gcc zlib-devel pcre-devel openssl-devel</p>
+<p>[root@VM_0_2_centos ~]# wget http://nginx.org/download/nginx-1.15.11.tar.gz</p>
+<p>[root@VM_0_2_centos ~]# tar -xvf nginx-1.15.11.tar.gz</p>
+<p>[root@VM_0_2_centos nginx-1.15.11]# useradd -s /sbin/nologin nginx</p>
+<p>[root@VM_0_2_centos nginx-1.15.11]# ./configure --prefix=/usr/local/nginx --user=nginx \</p>
+<p>&gt; --group=nginx --with-http_ssl_module --with-http_stub_status_module --without-http_fastcgi_module --without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module</p>
+<p>[root@VM_0_2_centos nginx-1.15.11]# make &amp;&amp; make install</p>
+<p>[root@VM_0_2_centos nginx-1.15.11]# cd</p>
+<p>[root@VM_0_2_centos ~]# ln -s /usr/local/nginx/sbin/nginx /sbin/</p>
+<p>[root@VM_0_2_centos ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>#主要修改如下配置</p>
+<p>        location /static/ {</p>
+<p>            root   html;</p>
+<p>            #index  index.html index.htm;</p>
+<p>        }</p>
+<p>        location / {</p>
+<p>            include /usr/local/nginx/conf/uwsgi_params;</p>
+<p>            uwsgi_pass 127.0.0.1:9090;</p>
+<p>        }</p>
+<p>[root@VM_0_2_centos ~]# nginx</p>
+<p>[root@VM_0_2_centos ~]# ss -tunlp | grep :80</p>
+<p>tcp    LISTEN     0      128       *:80                    *:*                   users:(("nginx",pid=11208,fd=6),("nginx",pid=11207,fd=6))</p>
+<p><br></p>
+</blockquote><h4>2.3，<b>mariadb数据库安装</b>
+</h4><blockquote>
+<p>[root@VM_0_2_centos ~]# yum -y install mariadb mariadb-server mariadb-devel</p>
+<p>[root@VM_0_2_centos ~]# vim /etc/my.cnf</p>
+<p>character-set-server=utf8</p>
+<p>[root@VM_0_2_centos ~]# systemctl restart mariadb</p>
+<p>[root@VM_0_2_centos ~]# mysql -uroot</p>
+<p>MariaDB [(none)]&gt; CREATE DATABASE `djangoblog`;</p>
+</blockquote><h4>2.4，<b>python+uwsgi+django环境搭建</b>
+</h4><blockquote>
+<p>[root@VM_0_2_centos ~]# wget https://www.python.org/ftp/python/3.5.2/Python-3.5.2.tgz</p>
+<p>[root@VM_0_2_centos ~]#tar -zxvf Python-3.5.2.tgz</p>
+<p>[root@VM_0_2_centos ~]#cd Python-3.5.2</p>
+<p>[root@VM_0_2_centos ~]#./configure</p>
+<p>[root@VM_0_2_centos ~]#make</p>
+<p>[root@VM_0_2_centos ~]#make install</p>
+<p>[root@VM_0_2_centos ~]#pip3 install virtualenv</p>
+<p>[root@VM_0_2_centos ~]#cd ~ &amp;&amp; mkdir ENV &amp;&amp;cd ENV</p>
+<p>[root@VM_0_2_centos ENV]# virtualenv -p /usr/local/bin/python3 python3</p>
+<p>[root@VM_0_2_centos ENV]# source python3/bin/activate</p>
+<p>(python3) [root@VM_0_2_centos ENV]# pip3 install uwsgi</p>
+<p>(python3) [root@VM_0_2_centos ~]# cd DjangoBlog/</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]# pip3 install -Ur requirements.txt</p>
+<p>创建数据库</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]# ./manage.py makemigrations</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]# ./manage.py migrate</p>
+<p>创建超级用户</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]#./manage.py createsuperuser</p>
+<p>创建测试数据</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]#./manage.py create_testdata</p>
+<p>收集静态文件</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]#./manage.py collectstatic --noinput</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]#./manage.py compress --force</p>
+<p>开启uwsgi服务</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]# uwsgi --ini start_uwsgi.ini</p>
+<p>(python3) [root@VM_0_2_centos DjangoBlog]# ss -tunlp | grep :9090</p>
+<p>tcp    LISTEN     0      100    127.0.0.1:9090                  *:*                   users:(("uwsgi",pid=11154,fd=3),</p>
+<p>("uwsgi",pid=11153,fd=3),("uwsgi",pid=11151,fd=3))</p>
+<p><br></p>
+</blockquote><h1><b>三 效果检验</b></h1><p>浏览器打开: http://127.0.0.1 就可以看到效果了，本次截图为本人的博客，看官安装好后大致和这个差不多,<a href="http://www.jluocc.cn" target="_blank">博客地址</a>:http://www.jluocc.cn</p><p><br></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-d622cb7b5786eacc.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>温馨提示：</b></p><p>(python3) [root@VM_0_2_centos DjangoBlog]## ./manage.py makemigrations</p><p>-bash: ./manage.py: 权限不够</p><p>解决办法：</p><p>(python3) [root@VM_0_2_centos DjangoBlog]## chmod +x manage.py</p><p><br></p><p><br></p><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

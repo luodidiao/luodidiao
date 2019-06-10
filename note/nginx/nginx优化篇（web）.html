@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nginx优化篇（web）</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">nginx优化篇（web）</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4dd8df9965a2af64.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>１，自定义报错页面</b></p><blockquote>
+<p>１）配置</p>
+<p>[root@proxy ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>.. ..</p>
+<p>error_page 404 /404.html; //自定义错误页面</p>
+<p>.. ..</p>
+<p>[root@proxy ~]# vim /usr/local/nginx/html/40x.html //生成错误页面</p>
+<p>Oops,No NO no page …</p>
+<p>[root@proxy ~]# nginx -s reload</p>
+<p>２）测试</p>
+<p>[root@client ~]# firefox http://192.168.4.5/xxxxx //访问一个不存在的页面</p>
+</blockquote><p><b>２，查看服务器状态信息</b></p><blockquote>
+<p>1）编译安装时使用--with-http_stub_status_module开启状态页面模块</p>
+<p>[root@proxy ~]# yum -y install gcc pcre-devel openssl-devel //安装常见依赖包</p>
+<p>[root@proxy ~]# tar -zxvf nginx-1.12.2.tar.gz</p>
+<p>[root@proxy ~]# cd nginx-1.12.2</p>
+<p>[root@proxy nginx-1.12.2]# ./configure \</p>
+<p>--with-http_ssl_module //开启SSL加密功能</p>
+<p>--with-stream //开启TCP/UDP代理模块</p>
+<p>--with-http_stub_status_module //开启status状态页面</p>
+<p>[root@proxy nginx-1.12.2]# make &amp;&amp; make install //编译并安装</p>
+<p>２）修改配置文件</p>
+<p>[root@proxy ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>… …</p>
+<p>location /status {　　　　　　　　　＃设置在根下输入status就可以查看nginx状态信息</p>
+<p>stub_status on; #开启状态页面</p>
+<p>＃ allow IP地址;</p>
+<p>＃ deny IP地址(all);</p>
+<p>}</p>
+<p>… …</p>
+<p>[root@proxy ~]# /usr/local/sbin/nginx #开启nginx</p>
+<p>３）查看nginx状态信息</p>
+<p>[root@proxy ~]#firefox http://192.168.4.5/status</p>
+<p>Active connections: 1 </p>
+<p>server accepts handled requests</p>
+<p>10 10 3 </p>
+<p>Reading: 0 Writing: 1 Waiting: 0</p>
+<p>Active connections：当前<a href="https://cloud.tencent.com/act" target="_blank">活动</a>的连接数量。</p>
+<p>Accepts：已经接受客户端的连接总数量。</p>
+<p>Handled：已经处理客户端的连接总数量。</p>
+<p>（一般与accepts一致，除非服务器限制了连接数量）。</p>
+<p>Requests：客户端发送的请求数量。</p>
+<p>Reading：当前服务器正在读取客户端请求头的数量。</p>
+<p>Writing：当前服务器正在写响应信息的数量。</p>
+<p>Waiting：当前多少客户端在等待服务器的响应。</p>
+</blockquote><p><b>3，优化nginx并发量</b></p><blockquote>
+<p>1）优化前使用ab高并发测试</p>
+<p>[root@proxy ~]# ab -n 2000 -c 2000 http://192.168.4.5/</p>
+<p>Benchmarking 192.168.4.5 (be patient)</p>
+<p>socket: Too many open files (24) //提示打开文件数量过多</p>
+<p>２）修改Nginx配置文件，增加并发量</p>
+<p>[root@proxy ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>.. ..</p>
+<p>worker_processes 2; //设置进程数，与CPU核心数量一致</p>
+<p>events {</p>
+<p>worker_connections 65535; //每个worker最大并发连接数,尽量写大一点</p>
+<p>use epoll;</p>
+<p>}</p>
+<p>.. ..</p>
+<p>[root@proxy ~]# nginx -s reload　　　　//刷新配置文件</p>
+<p>３）优化linux内核参数(最大文件数量)</p>
+<p>[root@proxy ~]#ulimit -a //查看所有属性值</p>
+<p>[root@proxy ~]#ulimit -Hn 100000 //设置硬限制（临时规则）</p>
+<p>[root@proxy ~]#ulimit -Sn 100000 //设置软限制（临时规则）</p>
+<p>[root@proxy ~]#vim /etc/security/limits.conf #修改配置文件．永久设置</p>
+<p>.. .. </p>
+<p>＊ 　 soft nofile 100000</p>
+<p>＊ 　 soft nofile 100000</p>
+<p>4）优化后<a href="https://cloud.tencent.com/product/MGCT" target="_blank">测试服务</a>器并发量（因为客户端没调内核参数，所以在proxy测试）</p>
+<p>[root@proxy ~]# ab -n 2000 -c 2000 http://192.168.4.5/　　　＃正常显示页面</p>
+</blockquote><p><b>4，优化Nginx数据包头缓存</b></p><blockquote>
+<p>1）优化前，使用脚本测试长头部请求是否能获得响应</p>
+<p>[root@proxy ~]# cat lnmp_soft/buffer.sh </p>
+<p>#!/bin/bash</p>
+<p>URL=http://192.168.4.5/index.html?</p>
+<p>for i in {1..5000}</p>
+<p>do</p>
+<p>URL=${URL}v$i=$i</p>
+<p>done</p>
+<p>curl $URL //经过5000次循环后，生成一个长的URL地址栏</p>
+<p>[root@proxy ~]# ./buffer.sh</p>
+<p>.. ..</p>
+<p>414 Request-URI Too Large</p>
+<p> //提示头部信息过大</p>
+<p>２）修改Nginx配置文件，增加数据包头部缓存大小</p>
+<p>[root@proxy ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>.. ..</p>
+<p>http {</p>
+<p>client_header_buffer_size 1k; //默认请求包头信息的缓存</p>
+<p>large_client_header_buffers 4 1m; //大请求包头部信息的缓存个数与容量,生产环境设置　4　4k 　就够用了</p>
+<p>.. ..</p>
+<p>}</p>
+<p>[root@proxy ~]# nginx -s reload</p>
+<p>3）优化后，使用脚本测试长头部请求是否能获得响应</p>
+<p>[root@proxy ~]#cat cat buffer.sh </p>
+<p>#!/bin/bash</p>
+<p>URL=http://192.168.4.5/index.html?</p>
+<p>for i in {1..5000}</p>
+<p>do</p>
+<p>URL=${URL}v$i=$i</p>
+<p>done</p>
+<p>curl $URL</p>
+<p>[root@proxy ~]# ./buffer.sh</p>
+</blockquote><p><b>5，设置浏览器本地缓存静态数据</b></p><blockquote>
+<p>１）修改Nginx配置文件，定义对静态页面的缓存时间</p>
+<p>[root@proxy ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>server {</p>
+<p>listen 80;</p>
+<p>server_name localhost;</p>
+<p>location / {</p>
+<p>root html;</p>
+<p>index index.html index.htm;</p>
+<p>}</p>
+<p>location ~* .(jpg|jpeg|gif|png|css|js|ico|xml)$ {</p>
+<p>access_log   off;   //不记录日志</p>
+<p>expires 30d; //定义客户端缓存时间为30天</p>
+<p>}</p>
+<p>}</p>
+<p>[root@proxy ~]# cp /usr/share/backgrounds/day.jpg /usr/local/nginx/html</p>
+<p>[root@proxy ~]# nginx -s reload</p>
+<p>2）优化后，使用Firefox浏览器访问图片，再次查看缓存信息</p>
+<p>[root@client ~]# firefox http://192.168.4.5/day.jpg</p>
+<p>在Firefox地址栏内输入about:cache，查看本地缓存数据，查看是否有图片以及过期时间是否正确。</p>
+</blockquote><p><b>6，nginx日志切割</b></p><p>思路：</p><p>1.把旧的日志重命名</p><p>2.kill USR1 PID(nginx的进程PID号)</p><blockquote>
+<p>１）手动执行</p>
+<p>备注：/usr/local/nginx/logs/nginx.pid文件中存放的是nginx的进程PID号。</p>
+<p>[root@proxy ~]#mv /usr/local/nginx/logs/access.log /usr/local/nginx/logs/access2.log</p>
+<p>[root@proxy ~]#kill -USR1 $(cat /usr/local/logs/nginx.pid) #检查日志文件，重新生成access.log/error.log文件</p>
+<p>２）自动完成</p>
+<p>设置每周6的03点03分自动执行脚本完成日志切割工作。</p>
+<p>[root@proxy ~]# vim /usr/local/nginx/logbak.sh //编写脚本</p>
+<p>＃!/bin/bash</p>
+<p>date=$(date +%Y%m%d)</p>
+<p>logpath=/usr/local/nginx/logs</p>
+<p>mv $(logpath)/access.log $(logpath)/access-$(date).log</p>
+<p>mv $(logppath)/error.log $(logpath)/error-$(date).log</p>
+<p>kill -USR1 $(cat $logpath/nginx.pid)</p>
+<p>[root@proxy ~]# crontab -e #对当前用户书写计划任务（一般是管理员） </p>
+<p>03 03 6 /usr/local/nginx/logbak.sh</p>
+</blockquote><p><b>7，对页面进行压缩处理</b></p><p>提示：对多媒体文件不要压缩，一般应用于图片，样式，js等</p><blockquote>
+<p>１）修改nginx配置文件</p>
+<p>[root@proxy ~]# cat /usr/local/nginx/conf/nginx.conf</p>
+<p>http {</p>
+<p>.. ..</p>
+<p>gzip on; //开启压缩</p>
+<p>gzip_min_length 1000; //当返回内容大于此值时才会使用gzip进行压缩,以K为单位,当值为0时，所有页面都进行压缩</p>
+<p>gzip_comp_level 4; //压缩比率（1－9），数字越高，花费时间越多，压缩效率越好，一般选中间</p>
+<p>gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;</p>
+<p>//对特定文件压缩，类型参考mime.types，位置：/usr/local/nginx/conf/mime.types</p>
+<p>.. ..</p>
+<p>}</p>
+</blockquote><p><b>8，服务器内存缓存</b></p><p>如果需要处理大量静态文件，可以将文件缓存在内存，下次访问会更快。</p><blockquote>
+<p>＃vim /usr/local/nginx/conf/nginx.conf</p>
+<p>http{</p>
+<p>open_file_cache max=2000 inactive=20s;</p>
+<p>open_file_cache_valid 60s;</p>
+<p>open_file_cache_min_uses 5;</p>
+<p>open_file_cache_errors off; //关闭缓存过期报错</p>
+<p>//设置服务器最大缓存2000个文件句柄，关闭20秒内无请求的文件句柄</p>
+<p>//文件句柄的有效时间是60秒，60秒后过期</p>
+<p>//只有访问次数超过5次会被缓存</p>
+<p>}</p>
+</blockquote><p><b>9，防盗链</b></p><blockquote>
+<p>＃vim /usr/local/nginx/conf/nginx.conf</p>
+<p>.......</p>
+<p> location /download/ {</p>
+<p>         valid_referers  none  blocked   *.example.com;</p>
+<p>        if ($invalid_referer) {</p>
+<p>         #rewrite   ^/   http://www.example.com/;</p>
+<p>        return   403;</p>
+<p>         }</p>
+<p>}</p>
+<p>.....</p>
+</blockquote><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-20e4bd0e98eab8b3.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

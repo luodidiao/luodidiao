@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zabbix监控nginx</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">zabbix监控nginx</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-32b8d0198c38bebf.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>1，确定监控内容</b></p><p><b>1）配置nginx</b></p><p>在编译nginx时加上--with-http_stub_status_module选项</p><p>编辑配置文件</p><blockquote>
+<p>[root@VM_0_2_centos ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>        location /status {</p>
+<p>            stub_status on;</p>
+<p>        }</p>
+</blockquote><p><b>2）查看</b></p><blockquote>
+<p>[root@VM_0_2_centos ~]# curl http://127.0.0.1/status</p>
+<p>Active connections: 1</p>
+<p>server accepts handled requests</p>
+<p> 42257 42257 43019</p>
+<p>Reading: 0 Writing: 1 Waiting: 0</p>
+<p>Active connections：当前<a href="https://links.jianshu.com/go?to=https%3A%2F%2Fcloud.tencent.com%2Fact" target="_blank">活动</a>的连接数量。</p>
+<p>Accepts：已经接受客户端的连接总数量。</p>
+<p>Handled：已经处理客户端的连接总数量。</p>
+<p>（一般与accepts一致，除非服务器限制了连接数量）。</p>
+<p>Requests：客户端发送的请求数量。</p>
+<p>Reading：当前服务器正在读取客户端请求头的数量。</p>
+<p>Writing：当前服务器正在写响应信息的数量。</p>
+<p>Waiting：当前多少客户端在等待服务器的响应。</p>
+</blockquote><p><b>2，编写监控脚本</b></p><p><b>1）编写</b></p><blockquote>
+<p>[root@VM_0_2_centos ~]# vim /shell/chk_nginx_status.sh</p>
+<p>#! /bin/bash</p>
+<p># Description：zabbix监控nginx性能以及进程状态</p>
+<p># Note：此脚本需要配置在被监控端，否则ping检测将会得到不符合预期的结果</p>
+<p>#主机ip或者域名</p>
+<p>HOST="jluocc.cn"</p>
+<p>#nginx开放端口</p>
+<p>PORT="80"</p>
+<p>case $1 in</p>
+<p>ping)</p>
+<p>    /sbin/pidof nginx | wc -l;;</p>
+<p>active)</p>
+<p>    /usr/bin/curl "http://$HOST:$PORT/status/" 2&gt;/dev/null| grep 'Active' | awk '{print $NF}';;</p>
+<p>reading)</p>
+<p>    /usr/bin/curl "http://$HOST:$PORT/status/" 2&gt;/dev/null| grep 'Reading' | awk '{print $2}' ;;</p>
+<p>writing)</p>
+<p>    /usr/bin/curl "http://$HOST:$PORT/status/" 2&gt;/dev/null| grep 'Writing' | awk '{print $4}';;</p>
+<p>waiting)</p>
+<p>    /usr/bin/curl "http://$HOST:$PORT/status/" 2&gt;/dev/null| grep 'Waiting' | awk '{print $6}';;</p>
+<p>accepts)</p>
+<p>    /usr/bin/curl "http://$HOST:$PORT/status/" 2&gt;/dev/null| awk NR==3 | awk '{print $1}';;</p>
+<p>handled)</p>
+<p>    /usr/bin/curl "http://$HOST:$PORT/status/" 2&gt;/dev/null| awk NR==3 | awk '{print $2}';;</p>
+<p>requests)</p>
+<p>    /usr/bin/curl "http://$HOST:$PORT/status/" 2&gt;/dev/null| awk NR==3 | awk '{print $3}';;</p>
+<p>*)</p>
+<p>    echo 'ping|active|reading|writing|waiting|accepts|handled|requests'</p>
+<p>esac</p>
+</blockquote><p><b>2）授权</b></p><blockquote>
+<p>[root@VM_0_2_centos ~]# chmod +x /shell/chk_nginx_status.sh</p>
+<p>3）测试</p>
+<p>[root@VM_0_2_centos ~]# /shell/chk_nginx_status.sh active</p>
+<p>1</p>
+</blockquote><p><b>3，zabbix_agent配置</b></p><p><b>1）查看</b></p><blockquote>
+<p>[root@VM_0_2_centos ~]# cat /usr/local/zabbix/etc/zabbix_agentd.conf | grep zabbix_agentd.conf.d</p>
+<p># Include=/usr/local/etc/zabbix_agentd.conf.d/</p>
+<p># Include=/usr/local/etc/zabbix_agentd.conf.d/*.conf</p>
+<p>Include=/usr/local/zabbix/etc/zabbix_agentd.conf.d/*.conf   #开启这一行</p>
+</blockquote><p><b>2）编辑监控nginx配置文件</b></p><blockquote>
+<p>[root@VM_0_2_centos ~]# vim /usr/local/zabbix/etc/zabbix_agentd.conf.d/userparameter_nginx.conf</p>
+<p>UserParameter=nginx.status[*],/shell/chk_nginx_status.sh $1</p>
+</blockquote><p><b>3）重启zabbix_agent</b></p><blockquote><p>[root@VM_0_2_centos ~]# /etc/init.d/zabbix_agentd restart</p></blockquote><p><b>4）测试</b></p><blockquote>
+<p>[root@VM_0_2_centos ~]# /usr/local/zabbix/bin/zabbix_get -s 172.16.0.2 -k nginx.status[active]</p>
+<p>1</p>
+<p>[root@VM_0_2_centos ~]# /usr/local/zabbix/bin/zabbix_get -s 172.16.0.2 -k nginx.status[reading]</p>
+<p>0</p>
+</blockquote><p><b>4，zabbix_server端监控nginx</b></p><p><b>1）添加主机</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-84cab3b55e660d4c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>2）添加监控模板</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-db7212e1dc6ab247.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-09510c66f3339bc1.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>3）创建应用级</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-ddc64ee8c1449c1e.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-03d6152c5226ede9.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>4）创建监控项</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-a84a0e0a3083ea23.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>以一个accepts为例</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4cc911ed1cc393ec.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>创建后如下图</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-b56bba266acb7a40.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>5）创建图形</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-e94cf2c89feea424.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>5，查看监控项</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3813e158a27ddee4.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-c5043c8e52744bcb.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-63dde34c044f7814.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>6，创建聚合图形</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-73a9cb95e2579b3f.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-c22706401571c3ad.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-a51784f8d2241bfe.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-30f5c05c4597a4e8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>最终合成</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-65281fe4840e6cb6.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>总结</b></p><p>到此监控nginx已经基本完成，触发告警下一节持续更新中，<b>关注我</b></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-169d8913573037cf.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

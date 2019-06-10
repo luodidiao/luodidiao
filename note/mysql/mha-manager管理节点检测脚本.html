@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mha-manager管理节点检测脚本</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">mha-manager管理节点检测脚本</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-6fa136924a5992e5.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><blockquote>
+<p>#!/usr/bin/env perl</p>
+<p>#  Copyright (C) 2011 DeNA Co.,Ltd.</p>
+<p>#</p>
+<p>#  This program is free software; you can redistribute it and/or modify</p>
+<p>#  it under the terms of the GNU General Public License as published by：</p>
+<p>#  the Free Software Foundation; either version 2 of the License, or</p>
+<p>#  (at your option) any later version.</p>
+<p>#</p>
+<p>#  This program is distributed in the hope that it will be useful,</p>
+<p>#  but WITHOUT ANY WARRANTY; without even the implied warranty of</p>
+<p>#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</p>
+<p>#  GNU General Public License for more details.</p>
+<p>#</p>
+<p>#  You should have received a copy of the GNU General Public License</p>
+<p>#   along with this program; if not, write to the Free Software</p>
+<p>#  Foundation, Inc.,</p>
+<p>#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA</p>
+<p>## Note: This is a sample script and is not complete. Modify the script based on your environment.</p>
+<p>use strict;</p>
+<p>use warnings FATAL =&gt; 'all';</p>
+<p>use Getopt::Long;</p>
+<p>use MHA::DBHelper;</p>
+<p>my (</p>
+<p>  $command,        $ssh_user,         $orig_master_host,</p>
+<p>  $orig_master_ip, $orig_master_port, $new_master_host,</p>
+<p>  $new_master_ip,  $new_master_port,  $new_master_user,</p>
+<p>  $new_master_password</p>
+<p>);</p>
+<p>my $vip = '192.168.4.100/24';  # Virtual IP</p>
+<p>my $key = "1";</p>
+<p>my $ssh_start_vip = "/sbin/ifconfig eth0:$key $vip";</p>
+<p>my $ssh_stop_vip = "/sbin/ifconfig eth0:$key down";</p>
+<p>GetOptions(</p>
+<p>  'command=s'             =&gt; \$command,</p>
+<p>  'ssh_user=s'            =&gt; \$ssh_user,</p>
+<p>  'orig_master_host=s'    =&gt; \$orig_master_host,</p>
+<p>  'orig_master_ip=s'      =&gt; \$orig_master_ip,</p>
+<p>  'orig_master_port=i'    =&gt; \$orig_master_port,</p>
+<p>  'new_master_host=s'     =&gt; \$new_master_host,</p>
+<p>  'new_master_ip=s'       =&gt; \$new_master_ip,</p>
+<p>  'new_master_port=i'     =&gt; \$new_master_port,</p>
+<p>  'new_master_user=s'     =&gt; \$new_master_user,</p>
+<p>  'new_master_password=s' =&gt; \$new_master_password,</p>
+<p>);</p>
+<p>exit &amp;main();</p>
+<p>sub main {</p>
+<p>  if ( $command eq "stop" || $command eq "stopssh" ) {</p>
+<p>    # $orig_master_host, $orig_master_ip, $orig_master_port are passed.</p>
+<p>    # If you manage master ip address at global catalog database,</p>
+<p>    # invalidate orig_master_ip here.</p>
+<p>    my $exit_code = 1;</p>
+<p>    eval {</p>
+<p>      # updating global catalog, etc</p>
+<p>      &amp;stop_vip();</p>
+<p>      $exit_code = 0;</p>
+<p>    };</p>
+<p>    if ($@) {</p>
+<p>      warn "Got Error: $@\n";</p>
+<p>      exit $exit_code;</p>
+<p>    }</p>
+<p>    exit $exit_code;</p>
+<p>  }</p>
+<p>  elsif ( $command eq "start" ) {</p>
+<p>    # all arguments are passed.</p>
+<p>    # If you manage master ip address at global catalog database,</p>
+<p>    # activate new_master_ip here.</p>
+<p>    # You can also grant write access (create user, set read_only=0, etc) here.</p>
+<p>    my $exit_code = 10;</p>
+<p>    eval {</p>
+<p>      my $new_master_handler = new MHA::DBHelper();</p>
+<p> # args: hostname, port, user, password, raise_error_or_not</p>
+<p>      $new_master_handler-&gt;connect( $new_master_ip, $new_master_port,</p>
+<p>        $new_master_user, $new_master_password, 1 );</p>
+<p>      ## Set read_only=0 on the new master</p>
+<p>      $new_master_handler-&gt;disable_log_bin_local();</p>
+<p>      print "Set read_only=0 on the new master.\n";</p>
+<p>      $new_master_handler-&gt;disable_read_only();</p>
+<p>      ## Creating an app user on the new master</p>
+<p>      print "Creating app user on the new master..\n";</p>
+<p>      $new_master_handler-&gt;enable_log_bin_local();</p>
+<p>      $new_master_handler-&gt;disconnect();</p>
+<p>      ## Update master ip on the catalog database, etc</p>
+<p>      &amp;start_vip();</p>
+<p>      $exit_code = 0;</p>
+<p>    };</p>
+<p>    if ($@) {</p>
+<p>      warn $@;</p>
+<p>      # If you want to continue failover, exit 10.</p>
+<p>      exit $exit_code;</p>
+<p>    }</p>
+<p>    exit $exit_code;</p>
+<p>  }</p>
+<p>  elsif ( $command eq "status" ) {</p>
+<p>    # do nothing</p>
+<p>    exit 0;</p>
+<p> }</p>
+<p>  else {</p>
+<p>    &amp;usage();</p>
+<p>    exit 1;</p>
+<p>  }</p>
+<p>}</p>
+<p>sub start_vip() {</p>
+<p>    `ssh $ssh_user\@$new_master_host \" $ssh_start_vip \"`;</p>
+<p>}</p>
+<p>sub stop_vip() {</p>
+<p>    return 0 unless ($ssh_user);</p>
+<p>    `ssh $ssh_user\@$orig_master_host \" $ssh_stop_vip \"`;</p>
+<p>}</p>
+<p>sub usage {</p>
+<p>  print</p>
+<p>"Usage: master_ip_failover --command=start|stop|stopssh|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port\n";</p>
+<p>}</p>
+</blockquote><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-edded0b4aa91d69a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

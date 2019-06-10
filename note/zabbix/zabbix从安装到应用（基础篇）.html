@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zabbix从安装到应用（基础篇）</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">zabbix从安装到应用（基础篇）</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-fd40ca3375c46448.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p>参考<a href="https://www.zabbix.com/documentation/4.0/manual/introduction" target="_blank">官方文档</a></p><p><b>1，工具准备</b></p><blockquote>
+<p>zabbix：http://www.zabbix.com/download_sources</p>
+<p><a href="https://links.jianshu.com/go?to=https%3A%2F%2Fwww.centos.org%2Fdownload%2F" target="_blank">linux</a>==&gt;CentOS Linux release 7.4.1708 (Core)</p>
+<p><a href="https://links.jianshu.com/go?to=https%3A%2F%2Fwww.php.net%2Fdownloads.php" target="_blank">php</a>==&gt; php-5.4.16</p>
+<p><a href="https://links.jianshu.com/go?to=http%3A%2F%2Fnginx.org%2Fen%2Fdownload.html" target="_blank">nginx</a>==&gt;nginx-1.12.2</p>
+<p><a href="https://mariadb.com/downloads/" target="_blank">mariadb</a>==&gt;mariadb-5.5.60  </p>
+</blockquote><p><b>2，lnmp环境搭建</b></p><p><b>实验前准备</b></p><blockquote>
+<p>[root@zabbix101 iso]# yum -y install epel-realease</p>
+<p>[root@zabbix101 iso]# vim /etc/selinux/config</p>
+<p>SELINUX=disabled</p>
+<p>[root@zabbix101 iso]# systemctl stop firewalld</p>
+<p>[root@zabbix101 iso]# systemctl disable firewalld</p>
+<p>[root@zabbix101 iso]#yum  -y install iptables-services</p>
+<p>[root@zabbix101 iso]# iptables -F</p>
+<p>[root@zabbix101 iso]# service iptables save</p>
+</blockquote><p><b>1）nginx</b></p><blockquote>
+<p>[root@zabbix101 iso]# yum -y install zlib-devel openssl-devel pcre-devel gcc-c++</p>
+<p>[root@zabbix101 iso]# tar -xvf nginx-1.12.2.tar.gz</p>
+<p>[root@zabbix101 iso]# useradd -s /sbin/nologin nginx</p>
+<p>[root@zabbix101 iso]# cd nginx-1.12.2</p>
+<p>[root@zabbix101 nginx-1.12.2]# ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_ssl_module --with-http_stub_status_module</p>
+<p>[root@zabbix101 nginx-1.12.2]#make &amp;&amp; make install</p>
+<p>[root@zabbix101 ~]# vim /usr/local/nginx/conf/nginx.conf</p>
+<p>… …</p>
+<p>http{</p>
+<p>… …</p>
+<p>fastcgi_buffers 8 16k;                      //缓存php生成的页面内容，8个16k</p>
+<p>fastcgi_buffer_size 32k;                      //缓存php生产的头部信息</p>
+<p>fastcgi_connect_timeout 300;                 //连接PHP的超时时间</p>
+<p>fastcgi_send_timeout 300;                     //发送请求的超时时间</p>
+<p>fastcgi_read_timeout 300;                        //读取请求的超时时间</p>
+<p>location ~ \.php$ {</p>
+<p>                root           html;</p>
+<p>                fastcgi_pass   127.0.0.1:9000;</p>
+<p>                fastcgi_index  index.php;</p>
+<p>                include        fastcgi.conf;</p>
+<p>        }</p>
+<p>… …</p>
+<p>[root@zabbix101 ~]# ln -s /usr/local/nginx/sbin/nginx /sbin/</p>
+<p>[root@zabbix101 ~]# nginx</p>
+<p>[root@zabbix101 ~]# ss -tunlp | grep :80</p>
+<p>tcp    LISTEN     0      128       *:80                    *:*                   users:(("nginx",pid=10245,fd=6),("nginx",pid=10244,fd=6))</p>
+</blockquote><p><b>2）php</b></p><blockquote>
+<p>[root@zabbix101 ~]# yum -y install  php-gettext net-snmp-devel curl-devel libevent-devel  php-gd php-xml php-bcmath php-mbstring</p>
+<p>[root@zabbix101 iso]# yum -y install php php-fpm php-mysql</p>
+<p>[root@zabbix101 ~]# vim /etc/php.ini</p>
+<p>date.timezone = Asia/Shanghai                //设置时区</p>
+<p>max_execution_time = 300                    //最大执行时间，秒</p>
+<p>post_max_size = 32M                        //POST数据最大容量</p>
+<p>max_input_time = 300                        //服务器接收数据的时间限制</p>
+<p>memory_limit = 128M                        //内存容量限制</p>
+<p>[root@zabbix101 iso]# systemctl restart php-fpm</p>
+<p>[root@zabbix101 iso]# systemctl enable php-fpm</p>
+<p>[root@zabbix101 ~]# ss -tunlp | grep php-fpm</p>
+<p>tcp    LISTEN     0      128    127.0.0.1:9000                  *:*                   users:(("php-fpm",pid=10353,fd=0),("php-fpm",pid=10352,fd=0),("php-fpm",pid=10351,fd=0),("php-fpm",pid=10350,fd=0),("php-fpm",pid=10349,fd=0),("php-fpm",pid=10347,fd=6))</p>
+</blockquote><p><b>3）mariadb</b></p><blockquote>
+<p>[root@zabbix101 ~]# yum -y install mariadb mariadb-server mariadb-devel</p>
+<p>[root@zabbix101 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>character_set_server=utf8</p>
+<p>[root@zabbix101 ~]# systemctl restart mariadb</p>
+<p>[root@zabbix101 ~]# systemctl enable mariadb</p>
+<p>[root@zabbix101 ~]# ss -tunlp | grep :3306</p>
+<p>tcp    LISTEN     0      50        *:3306                  *:*                   users:(("mysqld",pid=28223,fd=13))</p>
+</blockquote><p><b>3，服务端</b></p><p><b>1）安装</b></p><blockquote>
+<p>[root@zabbix101 iso]# wget https://sourceforge.net/projects/zabbix/files/ZABBIX%20Latest%20Stable/4.0.7/zabbix-4.0.7.tar.gz</p>
+<p>[root@zabbix101 iso]# ls</p>
+<p>zabbix-4.0.5.tar.gz</p>
+<p>[root@zabbix101 iso]# tar -xvf zabbix-4.0.5.tar.gz</p>
+<p>[root@zabbix101 iso]# yum -y install zlib-devel pcre-devel openssl-devel gcc-c++ libxml2 libxml2-devel</p>
+<p>[root@zabbix101 iso]# useradd -s /sbin/nologin zabbix</p>
+<p>[root@zabbix101 zabbix-4.0.5]# ./configure --prefix=/usr/local/zabbix  --enable-server --enable-agent --with-mysql=/usr/bin/mysql_config --enable-ipv6 --with-net-snmp --with-libcurl --with-libxml2 --with-net-snmp</p>
+<p>// --enable-server安装部署zabbix服务器端软件</p>
+<p>// --enable-agent安装部署zabbix被监控端软件</p>
+<p>// --enable-proxy安装部署zabbix代理相关软件</p>
+<p>// --with-mysql配置mysql_config路径</p>
+<p>// --with-net-snmp允许zabbix通过snmp协议监控其他设备</p>
+<p>// --with-libcurl安装相关curl库文件，这样zabbix就可以通过curl连接http等服务，测试被监控主机服务的状态</p>
+<p>//自Zabbix 2.2.0起，支持虚拟机监视所需的--with-libcurl和--with-libxml2配置选项。</p>
+<p>[root@zabbix101 zabbix-4.0.5]# make install</p>
+<p>[root@zabbix101 ~]# vim /usr/local/zabbix/etc/zabbix_server.conf</p>
+<p>DBHost=localhost</p>
+<p>//数据库主机，默认该行被注释</p>
+<p>DBName=zabbix</p>
+<p>//设置数据库名称</p>
+<p>DBUser=zabbix</p>
+<p>//设置数据库账户</p>
+<p>DBPassword=zabbix</p>
+<p>//设置数据库密码，默认该行被注释</p>
+<p>LogFile=/tmp/zabbix_server.log    </p>
+<p>//设置日志，仅查看以下即可</p>
+</blockquote><p><b>2）初始化数据库</b></p><blockquote>
+<p>[root@zabbix101 zabbix-4.0.5]# mysql</p>
+<p>MariaDB [(none)]&gt; create database zabbix character set utf8;</p>
+<p>MariaDB [(none)]&gt; grant all on zabbix.* to zabbix@'localhost' identified by 'zabbix';</p>
+<p>[root@zabbix101 mysql]# pwd</p>
+<p>/iso/zabbix-4.0.5/database/mysql</p>
+<p>[root@zabbix101 mysql]# mysql -uzabbix -pzabbix zabbix &lt; schema.sql</p>
+<p>[root@zabbix101 mysql]# mysql -uzabbix -pzabbix zabbix &lt; images.sql</p>
+<p>[root@zabbix101 mysql]# mysql -uzabbix -pzabbix zabbix &lt; data.sql</p>
+<p>[root@zabbix101 mysql]# cd /iso/zabbix-4.0.5/frontends/php/</p>
+<p>[root@zabbix101 php]# cp -r * /usr/local/nginx/html/</p>
+<p>[root@zabbix101 php]# chown -R nginx:nginx /usr/local/nginx/html/</p>
+</blockquote><p><b>3）启动并访问</b></p><blockquote>
+<p>[root@zabbix101 ~]# /usr/local/zabbix/sbin/zabbix_server -c /usr/local/zabbix/etc/zabbix_server.conf</p>
+<p>[root@zabbix101 ~]# ss -tunlp | grep :10051</p>
+<p>tcp    LISTEN    0      128      *:10051   .......</p>
+<p>提示：如果是因为配置文件不对，导致服务无法启动时，不要重复执行zabbix_server，</p>
+<p>一定要先使用killall zabbix_server关闭服务后，再重新启动一次。</p>
+<p>[root@zabbix101 ~]# vim /usr/local/zabbix/etc/zabbix_agentd.conf</p>
+<p>Server=127.0.0.1,192.168.68.101                  //允许哪些主机监控本机</p>
+<p>ServerActive=127.0.0.1,192.168.68.101               //允许哪些主机通过主动模式监控本机</p>
+<p>Hostname=zabbix_server                        //设置本机主机名</p>
+<p>LogFile=/tmp/zabbix_server.log                    //设置日志文件</p>
+<p>UnsafeUserParameters=1                        //是否允许自定义key</p>
+<p>[root@zabbix101 ~]# /usr/local/zabbix/sbin/zabbix_agentd -c /usr/local/zabbix/etc/zabbix_agentd.conf</p>
+<p>[root@zabbix101 ~]# ss -tunlp | grep zabbix_agent</p>
+<p>tcp    LISTEN    0      128      *:10050 ......</p>
+<p>提示：如果是因为配置文件不对，导致服务无法启动时，不要重复执行zabbix_agentd，</p>
+<p>一定要先使用killall zabbix_agentd关闭服务后，再重新启动一次。</p>
+</blockquote><p>浏览器访问http://192.168.68.101/index.php</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-99098aa7038bdf9c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-80a0ef618fd20688.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4a8cc2b825e2faaa.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-6303c715cd20a66b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-baaf3b98787e6b7b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-87ea331e9a9a562d.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p>下载配置文件到下载放到对应路径下即</p><blockquote>
+<p>[root@zabbix101 ~]# ls /usr/local/nginx/html/conf/zabbix.conf.php</p>
+<p>/usr/local/nginx/html/conf/zabbix.conf.php</p>
+</blockquote><p>然后点击下一步如下图</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3b0544c9353dac62.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-a395446c5fc389af.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-eb464411001a549a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-fb5b163ad5e861de.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-2d0c34adf1411e60.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><br></p><p><b>4，客户端安装</b></p><blockquote>
+<p>[root@web50 iso]# yum -y install gcc pcre-devel</p>
+<p>[root@web50 ~]# useradd -s /sbin/nologin zabbix</p>
+<p>[root@web50 iso]# tar -xvf zabbix-4.0.5.tar.gz</p>
+<p>[root@web50 iso]# cd zabbix-4.0.5</p>
+<p>[root@web50 zabbix-4.0.5]# ./configure --enable-agent</p>
+<p>[root@web50 zabbix-4.0.5]# make install</p>
+<p>[root@web50 ~]# vim /usr/local/etc/zabbix_agentd.conf</p>
+<p>Server=127.0.0.1,192.168.68.101                //谁可以监控本机（被动监控模式）</p>
+<p>ServerActive=127.0.0.1,192.168.68.101                  //谁可以监控本机（主动监控模式）</p>
+<p>Hostname=zabbixclient_web50                    //被监控端自己的主机名</p>
+<p>EnableRemoteCommands=1    </p>
+<p>//监控异常后，是否允许服务器远程过来执行命令，如重启某个服务</p>
+<p>UnsafeUserParameters=1                                 //是否允许自定义key监控</p>
+<p>[root@web50 ~]# zabbix_agentd</p>
+<p>[root@web50 ~]# ss -tunlp | grep zabbix_agentd</p>
+<p>tcp    LISTEN     0      128       *:10050 。。。。</p>
+</blockquote><p><b>5，添加受监控主机到服务端上</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-01d150b858961115.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-1d714ffc0bfa83d3.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-8ce3b6433adce890.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-ed44edb05834e127.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-326adc34614b06c5.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-d088e3fe9c7cc248.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-5592609b0aa2884b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-48734a353aaef296.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4db67d2089f801ce.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>总结</b></p><p>本次教程主要分享简单的zabbix搭建与使用，下一篇将和大家分享zabbix从安装到应用（实战篇）</p><p>温馨提示</p><p>zabbix安装配置界面点击next step没反应</p><p>修改/var/lib/php/session/宿主或者添加777权限</p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-55554d42ef77c87c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

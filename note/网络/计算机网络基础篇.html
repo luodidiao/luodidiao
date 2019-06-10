@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计算机网络基础篇</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">计算机网络基础篇</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-1013068f91aeb5c1.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h1>第一节前言</h1><h3>1.1什么是计算机网络<br>
+</h3><p>硬件方面：通过线缆将网络设备和计算机连接起来。</p><p>软件方面：操作系统，应用软件应用程序通过同学线路互连，实现资源共享，信息传递。</p><h3>1.2计算机网络的功能</h3><p>实现数据通信，资源共享，增加数据的可靠性，提高系统处理能力。</p><h3>1.3WAN与LAN</h3><p><b>1）广域网（Wide-Aea Netork）</b></p><p>范围：几十到几千千米</p><p>作用：用于连接远距离的计算机网络，如用于Internet。</p><p><b>2）局域网（Local-Area Network）</b></p><p>范围：1km左右</p><p>作用：用于连接较短距离内的计算机，如用于企业网，校园网，政府内部网等。</p><h3>1.4网络拓扑结构</h3><p>线缆连接计算机和网络设备的布局：点对点，星型及扩展的星型，网状</p><p><b>1）点对点拓扑结构</b></p><p>两台设备之间有一条单独的连接，专用的广域网中电路连接的两台路由器</p><p><b>2）星型拓扑结构</b></p><p>一个节点与其他一个节点相连。</p><p>优点：易于实现；易于网络扩展；易于故障排查。</p><p>缺点：中心节点压力大；组网成本较高；存在单点故障，安全性，稳定性不高。</p><p><b>3）网状拓扑结构</b></p><p>一个节点与其他多个节点相连。</p><p>优点：提供冗余性和容错性；可靠性，安全性较高。</p><p>缺点：组网成本高。</p><p><br></p><h3>1.5OSI协议模型</h3><p>网络通信的过程很复杂，为了降低网络设计的复杂性，将协议进行了分层设计。</p><h4>1.5.1什么是协议</h4><p>为了使数据可以在网络上从数据传递到目的地，网络上所有设备需要“讲”相同的“语言”，描述昂罗通信中的“语言”规范的一组规则就是协议。</p><h4>1.5.2OSI七层模型</h4><p>应用层：网络服务与最终用户的一个接口</p><p>表示层：数据的表示，安全，压缩</p><p>会话层：建立，管理，中止回话</p><p>传输层：定义传输数据的协议端口号以及流控和差错校验</p><p>网络层：进行逻辑地址寻址，实现不同网络之间的路径选择</p><p>数据链路层：建立逻辑连接，进行硬件地址寻址，差错校验等功能</p><p>物理层：建立，维护，断开物理连接</p><h4>1.5.3TCP/P5层模型</h4><p><b>1）对应协议族的组成</b></p><p>应用层：HTTTP FTP TFTP SMTP SNMP DNS等</p><p>传输层：TCP UDP</p><p>网络层：CMP IGMP                     IP                     ARP RARP</p><p>数据链路层：由底层网络定义的协议</p><p>物理层：由底层网络定义的协议</p><p><b>2）协议数据单元</b></p><p>应用层：                                                   上层数据</p><p>传输层：                                    TCP头部  上层数据  =&gt;数据段</p><p>网络层：                        IP头部  TCP头部  上层数据  =&gt;数据包</p><p>数据链路层：MAC头部  IP头部  TCP头部  上层数据  =&gt;数据帧</p><p>物理层：                                                                       =&gt;比特流</p><p><b>3)  设备与层的对应关系</b></p><p>应用层            ==&gt;    计算机</p><p>传输层            ==&gt;    防火墙</p><p>网络层            ==&gt;    路由器</p><p>数据链路层     ==&gt;    交换机</p><p>物理层            ==&gt;    网卡</p><h1>第二节物理层</h1><p>物理层是TCP/IP模型的最底层，为数据端设备传送数据的通路</p><h3>2.1以太网接口</h3><p>RJ-45</p><p>RJ是描述公用电信网络的接口，常用的有RJ-11和RJ-45</p><p>光纤接口</p><p>用以稳定地但并不是永久地连接两根线或多根光纤的无源组件</p><p>FC：圆形带螺旋纹光纤接头</p><p>ST：卡接式圆形光纤接头</p><p>SC：方形光纤接头</p><p>LC：窄体方形光纤接头</p><p>MT-RJ：收发一体的方形光纤接头</p><h4>2.2双绞线</h4><p>双绞线TP是目前使用最广，价格相对便宜的一种传输介质；由两根绝缘铜导线相互缠绕组成，以减少对邻近线对的电气干扰；由若干对双绞线构成的电缆被称为双绞线电缆；非屏蔽双绞线UTP和屏蔽双绞线STP</p><p><b>1）双绞线的标准</b></p><p>类型 传输速率</p><p>cat5 100Mbps</p><p>cat5e 100Mbps</p><p>cat6 1000Mbps(1Gbps)</p><p>cat7 10000Mbps(10Gbps)</p><p><b>2）线缆的连接</b></p><p>• T568A：白绿、绿、白橙、蓝、白蓝、橙、白棕、棕</p><p>• T568B：白橙、橙、白绿、蓝、白蓝、绿、白棕、棕</p><p>– 标准网线</p><p>– 交叉网线</p><p>– 全反线</p><p>提示：含有交换机之间的用直通线，其他情况用交叉线。</p><p>其他情况：版本较新设备可以随意使用标准与交叉网线而不受限制，设备本身具备自动识别功能。</p><h3>2.3中继器</h3><p>作用：放大信号，延长网络传输距离</p><p><br></p><h1>第三节数据链路层</h1><p><b>使用的软件    ：</b>Cisco Packet Tracer 7.2.1</p><p><b>官网下载地址：</b><a href="https://www.packettracernetwork.com/download/download-packet-tracer.html" target="_blank">https://www.packettracernetwork.com/download/download-packet-tracer.html</a></p><p><b>百度      链接 ：</b> https://pan.baidu.com/s/19DMuorFZSBKrL2xaJJnnLw</p><p><b>提取码：</b>m8q7</p><p>Cisco Packet Tracer软件的安装与使用这里就不多言了，看官要是需要可以在评论区留言，看是否需要出教程。</p><h3>3.1以太网MAC地址</h3><p>用来识别一个以太网上的某个单独的设备或一组设备，如图</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-ccc9093a2fcae717.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h2>3.2以太网帧格式</h2><p>数据链路层的协议数据单元</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-869231721afa6247.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h3>3.3以太网交换机</h3><h4>3.3.1什么是交换机</h4><p>交换机是用来连接局域网的主要设备，交换机能够根据以太网帧中目标地址智能的转发数据，</p><p>因此交换机工作在数据链路层。</p><h4>3.3.2交换机的工作原理（转发原理）</h4><p><b>1）初始状态</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-2860997665d0dc4f.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>2）MAC地址学习</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-fc80139bf8ba55da.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>3）广播未知数据帧</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-696a4fa075ed2151.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>4）接收方回应</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-69453d27f77f0e3a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>5）交换机实现单播通信</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-14dcbebfd734bb7f.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>6）交换机的工作原理总结</b></p><p><i>学习</i></p><p>– MAC地址表是交换机通过学习接收的数据帧的源MAC地址来形成的</p><p><i>广播</i></p><p>– 如果目标地址在MAC地址表中没有，交换机就向除接收到该数据帧</p><p>的接口外的其他所有接口广播该数据帧</p><p><i>转发</i></p><p>– 交换机根据MAC地址表单播转发数据帧</p><p><i>更新</i></p><p>– 交换机MAC地址表的老化时间是300秒</p><p>– 交换机如果发现一个帧的入接口和MAC地址表中源MAC地址的所在</p><p>接口不同，交换机将MAC 地址重新学习到新的接口</p><h4>3.3.3交换机命令行</h4><p><b>1）用户模式</b></p><blockquote><p>Switch&gt;</p></blockquote><p><b>2）特权模式（一般用于查看配置信息）</b></p><blockquote>
+<p>Switch&gt;enable</p>
+<p>Switch#</p>
+</blockquote><p><b>3）全局配置模式（所做的配置对整个设备生效）</b></p><blockquote>
+<p>Switch#configure terminal</p>
+<p>Switch(config)#</p>
+</blockquote><p><b>4）接口模式</b></p><blockquote>
+<p>Switch(config)#interface fastEthernet 0/1</p>
+<p>Switch(config-if)#</p>
+<p>– interface：关键字</p>
+<p>– fastethernet：接口类型</p>
+<p>– 0/1：“0”表示模块号，“1”表示接口号</p>
+</blockquote><p><b>5）模式间转换</b></p><p>– exit命令</p><p>– end命令</p><p>– 快捷键Ctrl+Z退出到特权模式</p><p>例1：</p><blockquote>
+<p>switch(config-if)#end</p>
+<p>switch#</p>
+<p>switch(config)#end</p>
+<p>switch#</p>
+</blockquote><p>例2：</p><blockquote>
+<p>switch(config-if)#exit</p>
+<p>switch(config)#exit</p>
+<p>switch#disable</p>
+<p>switch&gt;</p>
+</blockquote><p>例3：</p><blockquote>
+<p>Switch&gt;用户模式</p>
+<p>Switch&gt;enable</p>
+<p>Switch#特模模式</p>
+<p>Switch#configure terminal</p>
+<p>Switch(config)#全局配置模式</p>
+<p>Switch(config)#interface fastEthernet 0/1</p>
+<p>Switch(config-if)#接口模式</p>
+</blockquote><p><b>6）配置主机名</b></p><blockquote>
+<p>Switch&gt;en</p>
+<p>Switch#conf t</p>
+<p>Switch(config)# hostname luojun-sw1</p>
+<p>luojun-sw1(config)# show running-config     #查看交换机的配置</p>
+<p>version 12.1</p>
+<p>no service pad</p>
+<p>service timestamps debug uptime</p>
+<p>service timestamps log uptime</p>
+<p>no service password-encryption</p>
+<p>!</p>
+<p>hostname luojun-sw1</p>
+</blockquote><p><b>7）配置enable明文口令</b></p><blockquote>
+<p>luojun-sw1(config)#enable password jluocc</p>
+<p>luojun-sw1(config)#exit</p>
+<p>luojun-sw1#show running-config</p>
+<p>......</p>
+<p>enable password jluocc</p>
+<p>.....</p>
+<p>luojun-sw1# exit    ##检验enable口令的作用</p>
+<p>Press RETURN to get started.</p>
+<p>luojun-sw1&gt;enable</p>
+<p>Password: jluocc</p>
+<p>luojun-sw1#</p>
+</blockquote><p><b>8）保存交换机的配置</b></p><blockquote>
+<p> luojun-sw1# copy running-config startup-config</p>
+<p>或</p>
+<p>luojun-sw1# write</p>
+<p>Building configuration...</p>
+<p>[OK]</p>
+</blockquote><p><b>9）恢复设备出厂默认值</b></p><blockquote>
+<p>luojun-sw1# erase startup-config</p>
+<p>luojun-sw1#reload</p>
+</blockquote><p><br></p><h4>3.3.4广播域</h4><p>广播域指接收同样广播消息的节点的集合，如：在该集合中的任何一个节点传输一个广播帧，则所有其他能收到这个帧的节点都被认为是该广播帧的一部分，交换机的所有接口默认属于同一个广播域。</p><h3>3.4VLAN</h3><h4>3.4.1什么是VLAN</h4><p>Virtual LAN（虚拟局域网）是物理设备上连接的不受物理位置限制的用户的一个逻辑组。</p><p><b>作用：</b></p><p>– 广播控制</p><p>– 增加安全性</p><p>– 提高带宽利用</p><p>– 降低延迟</p><h4>3.4.2VLAN配置</h4><p><b>配置步骤：</b></p><p>– 创建VLAN</p><p>– 将接口加入到相应的VLAN中</p><p>– 验证</p><p><b>1）在全局配置模式下创建VLAN</b></p><blockquote>
+<p>Switch(config)#vlan vlan-id</p>
+<p>Switch(config)#no vlan vlan-id    ##删除已创建的VLAN</p>
+</blockquote><p><b>2）将接口加入VLAN</b></p><blockquote>
+<p>Switch(config)# interface f0/1</p>
+<p>Switch(config-if)# switchport access vlan vlan-id</p>
+<p>Switch(config-if)# no switchport access vlan vlan-id</p>
+<p>也可以同时将多个接口添加到某个VLAN中：</p>
+<p>Switch(config)# interface range f0/1 – 10    接着讲多个接口加入到vlan中，即switchport access vlan vlan-id</p>
+</blockquote><p><b>3）验证VLAN的配置</b></p><blockquote><p>Switch# show vlan brief</p></blockquote><h3>3.5TRUNK</h3><p>TRUNK即给vlan打标识，交换机给每个去往其他交换机的数据帧打上VLAN标识。</p><h4>3.5.1VLAN标识的种类</h4><p>以太网上实现中继可用两种封装类型</p><p>– ISL（Cisco私有协议）</p><p>– IEEE 802.1Q</p><p><b>1）IEEE802.1Q帧格式</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-6bbfe68e3cde145a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-52b07a719297e7dd.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>2）ISL帧格式</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-241e9dac78a05903.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-2f2fa708a95dbc66.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>3.5.2ISL帧格式</h4><p><b>1）相同点</b></p><p>– 都是显式标记，即帧被显式标记了VLAN的信息</p><p><b>2）不同点</b></p><p>– IEEE 802.1Q是公有的标记方式，ISL是Cisco私有的</p><p>– ISL采用外部标记的方法，802.1Q采用内部标记的方法</p><p>– ISL标记的长度为30字节，802.1Q标记的长度为4字节</p><h4>3.5.3Trunk配置</h4><p><b>1）配置接口为Trunk模式</b></p><blockquote>
+<p>Switch(config)# interface interface-id</p>
+<p>Switch(config-if)#switchport mode ?</p>
+<p>access Set trunking mode to ACCESS unconditionally</p>
+<p>dynamic Set trunking mode to dynamically negotiate</p>
+<p>access or trunk mode</p>
+<p>trunk Set trunking mode to TRUNK unconditionally</p>
+<p>Switch(config-if)#switchport mode trunk</p>
+</blockquote><p><b>2）恢复接口默认模式</b></p><blockquote>
+<p>Switch(config)# interface interface-id</p>
+<p>Switch(config-if)#switchport mode dynamic auto</p>
+<p>或</p>
+<p>Switch(config-if)#no switchport mode trunk</p>
+</blockquote><p><b>3）查看接口模式</b></p><blockquote>
+<p>格式：Switch#show interface interface-id switchport</p>
+<p>Switch#show interface f0/1 switchport</p>
+<p>Name: Fa0/1</p>
+<p>Switchport: Enabled</p>
+<p>Administrative Mode: dynamic auto</p>
+<p>Operational Mode: static access</p>
+<p>Administrative Trunking Encapsulation: dot1q</p>
+<p>Operational Trunking Encapsulation: native</p>
+<p>Negotiation of Trunking: On</p>
+<p>Access Mode VLAN: 1 (default)</p>
+</blockquote><h3>3.6以太通道</h3><h4>3.6.1以太通道概述</h4><p> 以太通道也称为以太接口捆绑、接口聚集或以太链路聚集。英文名EtherChannel，以太通道为交换机提供了接口捆绑的技术，允许两个交换机之间通过两个或多个接口并行连接，同时传输数据，以提供更高的带宽和可靠性。</p><p><b>作用：</b></p><p>多条线路负载均衡，带宽提高；容错，当一条线路失效时，其他线路通信，不会丢包。</p><h4>3.6.2以太通道配置指导原则</h4><p>1）参与捆绑的接口必须属于同一个vlan，如果是在中继模式（trunk）下，要求所有参加捆绑的接口都是在中继模式下。</p><p>2）如果接口配置的是中继模式，那么应该在链路的两端将通道中的所有接口配置成中继模式（trunk）。</p><h4>3.6.3配置以太网通道</h4><p><b>1） 配置</b></p><blockquote>
+<p>Switch(config)# interface range fastEthernet 0/1 – 2</p>
+<p>Switch(config-if-range)#channel-group 1 mode on</p>
+<p>Creating a port-channel interface Port-channel 1</p>
+</blockquote><p><b>2）查看</b></p><blockquote><p>Switch# show etherchannel summary</p></blockquote><p><br></p><h1>第四节网络层</h1><p><br></p><p><br></p><p><br></p><h1>第五节传输层</h1><p><br></p><h1>总结</h1><p><br></p><p><br></p><p><b>温馨提示：</b></p><p>本次教程仅供参考，若有不足之处望方家指正，谢谢。</p><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

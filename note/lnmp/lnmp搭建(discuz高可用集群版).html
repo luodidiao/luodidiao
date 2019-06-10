@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lnmp搭建(discuz高可用集群版)</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">lnmp搭建(discuz高可用集群版)</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-90a6243609ced8d3.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>第一节需求</h4><p>在上一篇<a href="https://www.jianshu.com/p/ac6acb4edf7d" target="_blank">lnmp搭建(discuz集群版)</a>中，存在单点故障，本次教程主要是解决单点故障的，即升级高可用架构，架构如下</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-e175b670742e5f96.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4><b>第二节工具准备</b></h4><blockquote>
+<p><a href="https://www.centos.org/download/" target="_blank">linux</a>==&gt;CentOS Linux release 7.4.1708 (Core)</p>
+<p><a href="https://www.php.net/downloads.php" target="_blank">php</a>==&gt; php-5.4.16</p>
+<p><a href="http://nginx.org/en/download.html" target="_blank">nginx</a>==&gt;nginx-1.12.2</p>
+<p><a href="https://dev.mysql.com/downloads/mysql/" target="_blank">mysql</a>==&gt;mysql-5.7.26</p>
+<p><a href="https://gitee.com/ComsenzDiscuz/DiscuzX" target="_blank">discuz</a>==&gt;Discuz!X3.4</p>
+<p><a href="https://www.keepalived.org/download.html" target="_blank">keepalive</a> ==&gt;keepalived-1.3.5-1</p>
+</blockquote><h4>第三节实战操作</h4><p><b>注意注意！！！！！！</b></p><p><b>每一台服务器前期准备:</b></p><blockquote>
+<p>[root@dispatch104 iso]# yum -y install epel-realease</p>
+<p>[root@dispatch104 iso]# vim /etc/selinux/config</p>
+<p>SELINUX=disabled</p>
+<p>[root@dispatch104 iso]# systemctl stop firewalld</p>
+<p>[root@dispatch104 iso]# systemctl disable firewalld</p>
+<p>[root@dispatch104 iso]#yum  -y install iptables-services</p>
+<p>[root@dispatch104 iso]# iptables -F</p>
+<p>[root@dispatch104 iso]# service iptables save</p>
+</blockquote><p><b>3.1nginx调度器高可用配置</b></p><p><b>1）主机103</b></p><blockquote>
+<p>[root@dispatch103 ~]# yum list | grep keepalived</p>
+<p>keepalived.x86_64                       1.3.5-1.el7                    local</p>
+<p>[root@dispatch103 ~]# yum -y install keepalived</p>
+<p>[root@dispatch103 ~]# vim /etc/keepalived/keepalived.conf   #删掉多余的，仅留下以下</p>
+<p>! Configuration File for keepalived</p>
+<p>global_defs {</p>
+<p>   notification_email {</p>
+<p>     root@localhost</p>
+<p>   }</p>
+<p>   notification_email_from Alexandre.Cassen@firewall.loc</p>
+<p>   smtp_server 127.0.0.1</p>
+<p>   smtp_connect_timeout 30</p>
+<p>   router_id LVS_DEVEL_1</p>
+<p>   #vrrp_skip_check_adv_addr</p>
+<p>   #vrrp_strict</p>
+<p>   #vrrp_garp_interval 0</p>
+<p>   #vrrp_gna_interval 0</p>
+<p>}</p>
+<p>vrrp_script chk_http_port {</p>
+<p>    script "/opt/chk_nginx.sh"</p>
+<p>    interval 1</p>
+<p>    weight -2</p>
+<p>    fail 2</p>
+<p>    rise 1</p>
+<p>}</p>
+<p>vrrp_instance VI_1 {</p>
+<p>    state MASTER</p>
+<p>    interface ens33</p>
+<p>    virtual_router_id 51</p>
+<p>    priority 101</p>
+<p>    advert_int 1</p>
+<p>    authentication {</p>
+<p>        auth_type PASS</p>
+<p>        auth_pass 1111</p>
+<p>    }</p>
+<p>    virtual_ipaddress {</p>
+<p>        192.168.68.250</p>
+<p>    }</p>
+<p>    track_script {</p>
+<p>        chk_http_port                  #引用上面的vrrp_script定义的脚本名称</p>
+<p>    }</p>
+<p>}</p>
+<p>[root@dispatch103 ~]# vim /opt/chk_nginx.sh</p>
+<p>#!/bin/bash</p>
+<p>counter=$(ps -C nginx --no-heading|wc -l)</p>
+<p>if [ "${counter}" = "0" ]; then</p>
+<p>    #/usr/local/nginx/sbin/nginx       #生产环境以下注释打开，现在注释只为了更直观看到效果</p>
+<p>    #sleep 2</p>
+<p>    #counter=$(ps -C nginx --no-heading|wc -l)</p>
+<p>    #if [ "${counter}" = "0" ]; then</p>
+<p>        /usr/bin/systemctl stop keepalived</p>
+<p>    #fi</p>
+<p>fi</p>
+<p>[root@dispatch103 ~]# chmod +x /opt/chk_nginx.sh</p>
+<p>[root@dispatch103 ~]# systemctl restart keepalived</p>
+<p>[root@dispatch103 ~]# systemctl enable keepalived</p>
+<p>[root@dispatch103 ~]# ip addr</p>
+<p>......</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000</p>
+<p>    link/ether 00:0c:29:d5:49:2d brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.103/24 brd 192.168.68.255 scope global ens33</p>
+<p>       valid_lft forever preferred_lft forever</p>
+<p>    inet 192.168.68.250/32 scope global ens33            #vip</p>
+<p>........</p>
+</blockquote><p><b>2）主机104</b></p><blockquote>
+<p>[root@dispatch104 iso]# ls</p>
+<p>nginx-1.12.2.tar.gz</p>
+<p>[root@dispatch104 iso]# tar -xvf nginx-1.12.2.tar.gz</p>
+<p>[root@dispatch104 ~]# yum -y install gcc-c++ zlib-devel openssl-devel pcre-devel</p>
+<p>[root@dispatch104 ~]# useradd -s /sbin/nologin nginx</p>
+<p>[root@dispatch104 nginx-1.12.2]# make &amp;&amp; make install</p>
+<p>[root@dispatch104 ~]# ln -s /usr/local/nginx/sbin/nginx /sbin/</p>
+<p>[root@dispatch104 ~]# cd /usr/local/nginx/</p>
+<p>[root@dispatch104 nginx]# vim conf/nginx.conf</p>
+<p>..........</p>
+<p>http {</p>
+<p>......</p>
+<p>    upstream myweb {</p>
+<p>        ip_hash;</p>
+<p>        server 192.168.68.50:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>        server 192.168.68.51:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>        server 192.168.68.52:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>        server 192.168.68.53:80 weight=1 max_fails=1 fail_timeout=30;</p>
+<p>    }</p>
+<p>  server {</p>
+<p>        location / {</p>
+<p>            proxy_pass http://myweb;</p>
+<p>            proxy_redirect     off;</p>
+<p>            proxy_set_header   Host             $host;</p>
+<p>            proxy_set_header   X-Real-IP        $remote_addr;</p>
+<p>            client_max_body_size       10m;</p>
+<p>: }</p>
+<p>        }</p>
+<p>.........</p>
+<p>   }</p>
+<p>}</p>
+<p>[root@dispatch104 ~]# ss -tunlp | grep :80</p>
+<p>tcp    LISTEN    0      128      *:80                    *:*                  users:(("nginx",pid=1270,fd=6),("nginx",pid=1269,fd=6))</p>
+<p>[root@dispatch104 ~]# echo '/usr/local/nginx/sbin/nginx' &gt;&gt; /etc/rc.local</p>
+<p>[root@dispatch104 ~]# chmod +x /etc/rc.local</p>
+<p>[root@dispatch104 ~]# yum -y install keepalived</p>
+<p>[root@dispatch104 ~]# vim /etc/keepalived/keepalived.conf </p>
+<p>! Configuration File for keepalived</p>
+<p>global_defs {</p>
+<p>  notification_email {</p>
+<p>    root@localhost</p>
+<p>  }</p>
+<p>  notification_email_from Alexandre.Cassen@firewall.loc</p>
+<p>  smtp_server 127.0.0.1</p>
+<p>  smtp_connect_timeout 30</p>
+<p>  router_id LVS_DEVEL_1</p>
+<p>  #vrrp_skip_check_adv_addr</p>
+<p>  #vrrp_strict</p>
+<p>  #vrrp_garp_interval 0</p>
+<p>  #vrrp_gna_interval 0</p>
+<p>}</p>
+<p>vrrp_script chk_http_port {</p>
+<p>    script "/opt/chk_nginx.sh"</p>
+<p>    interval 1</p>
+<p>    weight -2</p>
+<p>    fail 2</p>
+<p>    rise 1</p>
+<p>}</p>
+<p>vrrp_instance VI_1 {</p>
+<p>    state MASTER</p>
+<p>    interface ens33              #改成自己机器的网卡名称如:eth0等</p>
+<p>    virtual_router_id 51</p>
+<p>    priority 100</p>
+<p>    advert_int 1</p>
+<p>    authentication {</p>
+<p>        auth_type PASS</p>
+<p>        auth_pass 1111</p>
+<p>    }</p>
+<p>    virtual_ipaddress {</p>
+<p>        192.168.68.250</p>
+<p>    }</p>
+<p>   track_script { </p>
+<p>        chk_http_port                  #引用上面的vrrp_script定义的脚本名称</p>
+<p>    }</p>
+<p>}</p>
+<p>[root@dispatch104 ~]# vim /opt/chk_nginx.sh</p>
+<p>#!/bin/bash</p>
+<p>counter=$(ps -C nginx --no-heading|wc -l)</p>
+<p>if [ "${counter}" = "0" ]; then</p>
+<p>    #/usr/local/nginx/sbin/nginx       #生产环境以下注释打开，现在注释只为了更直观看到效果</p>
+<p>    #sleep 2</p>
+<p>    #counter=$(ps -C nginx --no-heading|wc -l)</p>
+<p>    #if [ "${counter}" = "0" ]; then</p>
+<p>        /usr/bin/systemctl stop keepalived</p>
+<p>    #fi</p>
+<p>fi</p>
+<p>[root@dispatch104 ~]# chmod +x /opt/chk_nginx.sh</p>
+<p>[root@dispatch104 ~]# systemctl restart keepalived</p>
+<p>[root@dispatch104 ~]# systemctl enable keepalived</p>
+<p>[root@dispatch104 ~]# ip addr</p>
+<p>.......</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</p>
+<p>    link/ether 00:0c:29:9b:a7:e1 brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.104/24 brd 192.168.68.255 scope global ens33</p>
+<p>       valid_lft forever preferred_lft forever</p>
+</blockquote><p><b>3.2maxscale高可用配置</b></p><p><b>1）主机maxscale10</b></p><blockquote>
+<p>[root@maxscale10 ~]# yum -y install keepalived</p>
+<p>[root@maxscale10 ~]# vim /etc/keepalived/keepalived.conf   #删掉多余的，仅留下以下</p>
+<p>! Configuration File for keepalived</p>
+<p>global_defs {</p>
+<p>   notification_email {</p>
+<p>     root@localhost</p>
+<p>   }</p>
+<p>   notification_email_from Alexandre.Cassen@firewall.loc</p>
+<p>   smtp_server 127.0.0.1</p>
+<p>   smtp_connect_timeout 30</p>
+<p>   router_id LVS_DEVEL_1</p>
+<p>   #vrrp_skip_check_adv_addr</p>
+<p>   #vrrp_strict</p>
+<p>   #vrrp_garp_interval 0</p>
+<p>   #vrrp_gna_interval 0</p>
+<p>}</p>
+<p>vrrp_script chk_http_port {</p>
+<p>    script "/opt/chk_maxscale.sh"</p>
+<p>    interval 1</p>
+<p>    weight -2</p>
+<p>    fail 2</p>
+<p>    rise 1</p>
+<p>}</p>
+<p>vrrp_instance VI_1 {</p>
+<p>    state MASTER</p>
+<p>    interface ens33</p>
+<p>    virtual_router_id 51</p>
+<p>    priority 101</p>
+<p>    advert_int 1</p>
+<p>    authentication {</p>
+<p>        auth_type PASS</p>
+<p>        auth_pass 1111</p>
+<p>    }</p>
+<p>    virtual_ipaddress {</p>
+<p>        192.168.68.9</p>
+<p>    }</p>
+<p>  track_script {</p>
+<p>        chk_http_port                  #引用上面的vrrp_script定义的脚本名称</p>
+<p>    }</p>
+<p>}</p>
+<p>[root@maxscale10 ~]# vim /opt/chk_maxscale.sh</p>
+<p>#!/bin/bash</p>
+<p>counter=$(ps -C maxscale --no-heading|wc -l)</p>
+<p>if [ "${counter}" = "0" ]; then</p>
+<p>    #/usr/bin/systemctl startmaxscale       #生产环境以下注释打开，现在注释只为了更直观看到效果</p>
+<p>    #sleep 2</p>
+<p>    #counter=$(ps -C maxscale --no-heading|wc -l)</p>
+<p>    #if [ "${counter}" = "0" ]; then</p>
+<p>        /usr/bin/systemctl stop maxscale </p>
+<p>    #fi</p>
+<p>fi</p>
+<p>[root@maxscale10 ~]# chmod +x /opt/chk_maxscale.sh</p>
+<p>[root@maxscale10 ~]# systemctl restart keepalived</p>
+<p>[root@maxscale10 ~]# systemctl enable keepalived</p>
+<p>[root@dispatch103 ~]# ip addr</p>
+<p>......</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000</p>
+<p>    link/ether 00:0c:29:d5:49:2d brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.103/24 brd 192.168.68.255 scope global ens33</p>
+<p>       valid_lft forever preferred_lft forever</p>
+<p>    inet 192.168.68.9/32 scope global ens33</p>
+<p>       valid_lft forever preferred_lft forever</p>
+<p>.........</p>
+<p><br></p>
+</blockquote><p><b>2）主机maxscale11</b></p><blockquote>
+<p>[root@maxscale11 ~]# yum -y install keepalived</p>
+<p>[root@maxscale11 ~]# vim /etc/keepalived/keepalived.conf   #删掉多余的，仅留下以下</p>
+<p>! Configuration File for keepalived</p>
+<p>global_defs {</p>
+<p>   notification_email {</p>
+<p>     root@localhost</p>
+<p>   }</p>
+<p>   notification_email_from Alexandre.Cassen@firewall.loc</p>
+<p>   smtp_server 127.0.0.1</p>
+<p>   smtp_connect_timeout 30</p>
+<p>   router_id LVS_DEVEL_1</p>
+<p>   #vrrp_skip_check_adv_addr</p>
+<p>   #vrrp_strict</p>
+<p>   #vrrp_garp_interval 0</p>
+<p>   #vrrp_gna_interval 0</p>
+<p>}</p>
+<p>vrrp_script chk_http_port {</p>
+<p>    script "/opt/chk_maxscale.sh"</p>
+<p>    interval 1</p>
+<p>    weight -2</p>
+<p>    fail 2</p>
+<p>    rise 1</p>
+<p>}</p>
+<p>vrrp_instance VI_1 {</p>
+<p>    state MASTER</p>
+<p>    interface ens33</p>
+<p>    virtual_router_id 51</p>
+<p>    priority 100</p>
+<p>    advert_int 1</p>
+<p>    authentication {</p>
+<p>        auth_type PASS</p>
+<p>        auth_pass 1111</p>
+<p>    }</p>
+<p>    virtual_ipaddress {</p>
+<p>        192.168.68.9</p>
+<p>    }</p>
+<p>  track_script {</p>
+<p>        chk_http_port                  #引用上面的vrrp_script定义的脚本名称</p>
+<p>    }</p>
+<p>}</p>
+<p>[root@maxscale11 ~]# vim /opt/chk_maxscale.sh</p>
+<p>#!/bin/bash</p>
+<p>counter=$(ps -C maxscale --no-heading|wc -l)</p>
+<p>if [ "${counter}" = "0" ]; then</p>
+<p>   #/usr/bin/systemctl start  maxscale #生产环境以下注释打开，现在注释只为了更直观看到效果</p>
+<p>    #sleep 2</p>
+<p>    #counter=$(ps -C maxscale --no-heading|wc -l)</p>
+<p>    #if [ "${counter}" = "0" ]; then</p>
+<p>        /usr/bin/systemctl stop maxscale</p>
+<p>    #fi</p>
+<p>fi</p>
+<p>[root@maxscale11 ~]# chmod +x /opt/chk_maxscale.sh</p>
+<p>[root@maxscale11 ~]# systemctl restart keepalived</p>
+<p>[root@maxscale11 ~]# systemctl enable keepalived</p>
+<p>[root@maxscale11 ~]# ip addr</p>
+<p>......</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000</p>
+<p>    link/ether 00:0c:29:d5:49:2d brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.11/24 brd 192.168.68.255 scope global ens33</p>
+<p>      valid_lft forever preferred_lft forever</p>
+<p>[root@maxscale11 iso]# ls</p>
+<p>maxscale-2.3.6-1.centos.7.x86_64.rpm</p>
+<p>[root@maxscale11 iso]# yum -y install maxscale-2.3.6-1.centos.7.x86_64.rpm</p>
+<p>[root@maxscale11 ~]# vim /etc/maxscale.cnf</p>
+<p>[maxscale]</p>
+<p>threads=auto</p>
+<p>[server1]</p>
+<p>type=server</p>
+<p>address=192.168.68.102</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[server2]</p>
+<p>type=server</p>
+<p>address=192.168.68.110</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[server3]</p>
+<p>type=server</p>
+<p>address=192.168.68.110</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[server4]</p>
+<p>type=server</p>
+<p>address=192.168.68.110</p>
+<p>port=3306</p>
+<p>#protocol=MariaDBBackend</p>
+<p>protocol=MySQLBackend</p>
+<p>[MariaDB-Monitor]</p>
+<p>type=monitor</p>
+<p>#module=mariadbmon</p>
+<p>module=mysqlmon</p>
+<p>servers=server1, server2, server3, server4</p>
+<p>user=scalemon</p>
+<p>password=Scalemon.com522527</p>
+<p>monitor_interval=2000</p>
+<p>detect_stale_master=true</p>
+<p>#[Read-Only-Service]</p>
+<p>#type=service</p>
+<p>#router=readconnroute</p>
+<p>#servers=server1</p>
+<p>#user=myuser</p>
+<p>#password=mypwd</p>
+<p>#router_options=slave</p>
+<p>[Read-Write-Service]</p>
+<p>type=service</p>
+<p>router=readwritesplit</p>
+<p>servers=server1, server2, server3, server4</p>
+<p>user=pliadmin</p>
+<p>password=Pliadmin.com522527</p>
+<p>max_slave_connections=100%</p>
+<p>[MaxAdmin-Service]</p>
+<p>type=service</p>
+<p>router=cli</p>
+<p>#[Read-Only-Listener]</p>
+<p>#type=listener</p>
+<p>#service=Read-Only-Service</p>
+<p>#protocol=MariaDBClient</p>
+<p>#port=4008</p>
+<p>[Read-Write-Listener]</p>
+<p>type=listener</p>
+<p>service=Read-Write-Service</p>
+<p>protocol=MariaDBClient</p>
+<p>port=3306</p>
+<p>[MaxAdmin-Listener]</p>
+<p>type=listener</p>
+<p>service=MaxAdmin-Service</p>
+<p>protocol=maxscaled</p>
+<p>socket=default</p>
+<p>[root@maxscale11 ~]# systemctl restart maxscale</p>
+<p>[root@maxscale11 ~]# systemctl enable maxscale</p>
+<p>[root@dispatch104 ~]# ss -tunlp | grep maxscale</p>
+<p>tcp    LISTEN     0      128    127.0.0.1:8989                  *:*                   users:(("maxscale",pid=23315,fd=23))</p>
+<p>tcp    LISTEN     0      128      :::3306                 :::*                   users:(("maxscale",pid=23315,fd=19))</p>
+</blockquote><p><b>3.3修改web中discuz数据库配置文件</b></p><p><b>1）第一个文件</b></p><blockquote>
+<p>[root@web50 ~]# cd /usr/local/nginx/html/</p>
+<p>[root@web50 html]# vim config/config_global.php</p>
+<p>// ----------------------------  CONFIG DB  ----------------------------- //</p>
+<p>$_config['db']['1']['dbhost'] = '192.168.68.9';</p>
+<p>$_config['db']['1']['dbuser'] = 'BBSuser';</p>
+<p>$_config['db']['1']['dbpw'] = 'Bbsuser.com522527';</p>
+<p>$_config['db']['1']['dbcharset'] = 'utf8';</p>
+<p>$_config['db']['1']['pconnect'] = '0';</p>
+<p>$_config['db']['1']['dbname'] = 'bbsdb';</p>
+<p>.......</p>
+</blockquote><p><b>2）第二个文件</b></p><blockquote>
+<p>[root@web50 html]# vim uc_server/data/config.inc.php</p>
+<p>define('UC_DBHOST', '192.168.68.9');</p>
+<p>define('UC_DBUSER', 'BBSuser');</p>
+<p>define('UC_DBPW', 'Bbsuser.com522527');</p>
+<p>define('UC_DBNAME', 'bbsdb');</p>
+<p>define('UC_DBCHARSET', 'utf8');</p>
+<p>.......</p>
+</blockquote><p><b>3）第三个文件</b></p><blockquote>
+<p>[root@web50 html]# vim config/config_ucenter.php</p>
+<p>.......</p>
+<p>define('UC_DBHOST', '192.168.68.9');</p>
+<p>define('UC_DBUSER', 'BBSuser');</p>
+<p>define('UC_DBPW', 'Bbsuser.com522527');</p>
+<p>define('UC_DBNAME', 'bbsdb');</p>
+<p>define('UC_DBCHARSET', 'utf8');</p>
+<p>........</p>
+</blockquote><p><b>4）同步文件给web51,52,53</b></p><blockquote>
+<p>[root@web50 html]# yum -y install rsync</p>
+<p>[root@web50 html]# for i in 51 52 53</p>
+<p>&gt; do</p>
+<p>&gt; rsync -ar /usr/local/nginx/html/ 192.168.68.$i:/usr/local/nginx/html/</p>
+<p>&gt; done</p>
+<p><br></p>
+</blockquote><h4>第四节测试</h4><p>4<b>.1测试调度器nginx是否高可用</b></p><p><b>1，浏览器访问http://192.168.250</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-704d622c433d8861.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p>2<b>，停掉dispatch103的nginx</b></p><blockquote><p>[root@dispatch103 ~]# nginx -s stop</p></blockquote><p><b>3，浏览器访问http://192.168.250依然能看到页面</b></p><p><b>原因：</b>停掉103nginx导致keepalived触发chk_nginx.sh停掉keepalived，vip:192.168.68.250就飘到104去了，达到了高可用，即：</p><blockquote>
+<p>[root@dispatch103 ~]# ip addr</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000</p>
+<p>    link/ether 00:0c:29:d5:49:2d brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.103/24 brd 192.168.68.255 scope global ens33</p>
+<p>       valid_lft forever preferred_lft forever</p>
+<p>[root@dispatch104 ~]# ip addr</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</p>
+<p>    link/ether 00:0c:29:9b:a7:e1 brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.104/24 brd 192.168.68.255 scope global ens33</p>
+<p>       valid_lft forever preferred_lft forever</p>
+<p>    inet 192.168.68.250/32 scope global ens33</p>
+<p>       valid_lft forever preferred_lft forever</p>
+</blockquote><p><b>4.2测试maxscale是否高可用</b></p><p><b>1，连接数据库</b></p><blockquote>
+<p>[root@mysql102 ~]#  mysql -uBBSuser -pBbsuser.com522527 -P3306 -h192.168.68.9</p>
+<p>mysql&gt;                          #不要退出</p>
+</blockquote><p><b>2，停掉maxscale10的maxscale</b></p><blockquote><p>[root@maxscale10 ~]# [root@dispatch103 ~]# systemctl stop maxscale</p></blockquote><p><b>3，刚才在mysql102并没有因为maxscale10停掉maxscale而卡死，依然能够正常操作数据库</b></p><p><b>原因：</b>停掉11的maxscale导致keepalived触发chk_maxscale.sh停掉keepalived，vip:192.168.68.9就飘到11去了，达到了高可用，即：</p><blockquote>
+<p>[root@maxscale10 ~]# ip addr</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP qlen 1000</p>
+<p>    link/ether 00:0c:29:d5:49:2d brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.10/24 brd 192.168.68.255 scope global ens33</p>
+<p>      valid_lft forever preferred_lft forever</p>
+<p>[root@maxscale11 ~]# ip addr</p>
+<p>2: ens33: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000</p>
+<p>    link/ether 00:0c:29:9b:a7:e1 brd ff:ff:ff:ff:ff:ff</p>
+<p>    inet 192.168.68.11/24 brd 192.168.68.255 scope global ens33</p>
+<p>      valid_lft forever preferred_lft forever</p>
+<p>    inet 192.168.68.9/32 scope global ens33</p>
+<p>      valid_lft forever preferred_lft forever</p>
+</blockquote><h4>总结<br>
+</h4><p>本次教程主要简单的和大家分享如何搭建一个简单的web集群高可用架构，这个架构也有许多不足：</p><p>1，可搭建redis集群或者redis哨兵模式来提高网站速度</p><p>2，数据库并不能达到高可用（如主库死掉了就不行了），当然也有解决办法，如可以搭建mha数据库集群即可解决，具体就看公司业务来决定了应该选择用哪一种方案，选择适合架构才是最好的。</p><p><b>温馨提示：</b></p><p>1，nginx调度器启动顺序，先启动nginx，在启动keepalived；maxscale也是差不多的，先启动maxscale，再启动keepalived</p><p>2，做实验时，每一台服务器都要关闭防火墙，禁用selinux！！！！</p><p>3，mysql的mha集群搭建，redis集群搭建，redis哨兵模式搭建正在赶来，<b>关注我</b></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4df0b3fd383cd4bb.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

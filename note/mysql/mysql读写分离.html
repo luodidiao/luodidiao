@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mysql读写分离</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">mysql读写分离</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4e22780894836084.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>第一节基础</h4><p><b>－－读写分离的原理</b></p><p>多台mysql服务器</p><p>分别提供读写服务，均衡流量</p><p>通过主从复制保持数据一致性</p><p>由mysql代理面向客户端</p><p>收到sql写请求时，交给服务器a处理</p><p>收到sql读请求时，交给服务器b处理</p><p>具体区分策略由服务设置</p><p><br></p><p>读写分离：数据的读，写分离</p><p><b>优点</b></p><p>1.增加冗余</p><p>2.增加了机器的处理能力</p><p>3.对于读操作为主的应用，使用读写分离是最好的场景，因为可以确保写的服务器压力更小，而读又可以接受点时间上的延迟。</p><p><b>缺点</b></p><p>　　单点故障</p><p>　　容易形成瓶颈</p><p><b>拓扑图：</b></p><p><br></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-56409cc379eda70a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>第二节实战</h4><p><b>－－构建思路</b></p><p>部署mysql一主一从　同步结构</p><p>　　已经搭建好mysql主从复制</p><p>基于上一个实验的结果</p><p>其中slave为只读</p><p>添加一台mysql代理服务器（读写分离服务器）</p><p>部署／启用maxscale</p><p>client测试</p><p><b>１）mysql中间件</b></p><p>Mysqlcat</p><p>Maxscale</p><p>Mysql-proxy</p><p><b>－－配置</b></p><p><b>１，mysql一主一从同步结构</b></p><p><b>１）配置主服务</b></p><blockquote>
+<p>[root@mysql-51 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>log_bin=master51</p>
+<p>server_id=51　　　#mysql主从里，id必须唯一，范围：1~255</p>
+<p>binlog_format="mixed"</p>
+<p>[root@mysql-51 ~]# systemctl restart mysqld   #重启刷新文件配置</p>
+<p>mysql&gt; show master status\G; #查看主库master状态，查看当前使用的binlog日志文件</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master51.000001</p>
+<p>         Position: 441</p>
+<p>     Binlog_Do_DB:</p>
+<p> Binlog_Ignore_DB:</p>
+<p>Executed_Gtid_Set:</p>
+<p>1 row in set (0.00 sec)</p>
+<p>mysql&gt; grant replication slave on *.* to repluser@'%' identified by '123456'; #授权给从服务器，单个数据库授权无效，必须设置*.*</p>
+</blockquote><p><b>２）配置从服务器</b></p><blockquote>
+<p>mysql&gt; show slave status;　　　#查看从库信息</p>
+<p>mysql&gt; show master status;       #查看binlog日志，查看主库信息</p>
+<p>[root@mysql-52 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>server_id=52　　　　　#从库id，要唯一</p>
+<p>[root@mysql-52 ~]# systemctl restart mysqld</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host='192.168.4.51',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>-&gt; master_log_file='master51.000001',　　#与主库binlog日志名相同</p>
+<p>-&gt; master_log_pos=441;　　　　#偏移量，与主库相同</p>
+<p>提示：任意参数指定不对，io线程读取不了信息</p>
+<p>mysql&gt; start slave;　　　　#启动slave(io,sql线程)</p>
+<p>mysql&gt; show slave stattus\G;</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.4.51</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master51.000001</p>
+<p>Read_Master_Log_Pos: 441</p>
+<p>               Relay_Log_File: mysql-52-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 319</p>
+<p>        Relay_Master_Log_File: master51.000001</p>
+<p>Slave_IO_Running: Yes             #看到yes就成功了</p>
+<p>Slave_SQL_Running: Yes　　　#ok了</p>
+<p>          ........</p>
+<p><br></p>
+<p>提示：sql线程在执行中继日志的sql命令时，一旦出错，sql线程立即停止</p>
+<p>方案：停掉slave，在从库新建相关表,重启slave</p>
+</blockquote><p><b>２，mysql代理服务器配置</b></p><p>使用软件－－＞maxscale</p><p>配置文件:/etc/maxscale.cnf</p><blockquote>
+<p>[root@myweb-57 jluo]# rpm -ivh maxscale-2.1.2-1.rhel.7.x86_64.rpm</p>
+<p>[root@myweb-57 jluo]# vim /etc/maxscale.cnf</p>
+<p>[maxscale]             #进程名</p>
+<p>threads=auto　　　#线程数量，默认１</p>
+<p>[server1]</p>
+<p>type=server</p>
+<p>address=192.168.4.51   #主库ip</p>
+<p>port=3306</p>
+<p>protocol=MySQLBackend</p>
+<p>[server2]</p>
+<p>type=server</p>
+<p>address=192.168.4.52   #从库ip</p>
+<p>port=3306</p>
+<p>protocol=MySQLBackend</p>
+<p><br></p>
+<p>[MySQL Monitor]   #监视mysql服务</p>
+<p>type=monitor</p>
+<p>module=mysqlmon</p>
+<p>servers=server1, server2</p>
+<p>user=scalemon      #maxscale登录mysql服务用户名，用于监视mysql 是否running,                        </p>
+<p>passwd=123456　　  #主从结构是否正常，谁是主库，谁是slave</p>
+<p>monitor_interval=10000    #每隔10s检查一次</p>
+<p>#detect_stale_master=true       #当所有的slave都不可用时，select查询请求会转发到master。</p>
+<p><br></p>
+<p>#[Read-Only Service]　　　　不需要指明只读</p>
+<p>#type=service</p>
+<p>#router=readconnroute</p>
+<p>#servers=server1</p>
+<p>#user=scalemon</p>
+<p>#passwd=mypwd</p>
+<p>#router_options=slave</p>
+<p><br></p>
+<p><br></p>
+<p>[Read-Write Service]　　　#定义读写分离服务</p>
+<p>type=service</p>
+<p>router=readwritesplit</p>
+<p>servers=server1, server2</p>
+<p>user=pliadmin　　　　#maxscale连接mysql服务检查客户端</p>
+<p>passwd=123456　　　#使用的用户名和密码用的用户名,密码</p>
+<p>max_slave_connections=100%  #所有的slave提供select查询服务</p>
+<p>#max_slave_replication_lag = 5      # slave超时5秒，就把请求转发到其他slave</p>
+<p><br></p>
+<p>[MaxAdmin Service]　　　#定义管理服务</p>
+<p>type=service</p>
+<p>router=cli　　　　　　　#命令行</p>
+<p><br></p>
+<p>#[Read-Only Listener]</p>
+<p>#type=listener</p>
+<p>#service=Read-Only Service</p>
+<p>#protocol=MySQLClient</p>
+<p>#port=4008</p>
+<p><br></p>
+<p>[Read-Write Listener]</p>
+<p>type=listener</p>
+<p>service=Read-Write Service　　　#与上面的[Read-Write Service]</p>
+<p>protocol=MySQLClient</p>
+<p>port=4006　　　　　　　　　　　#maxscale服务监听的端口号</p>
+<p><br></p>
+<p>[MaxAdmin Listener]</p>
+<p>type=listener</p>
+<p>service=MaxAdmin Service　　#与上面的[MaxAdmin Service]一样</p>
+<p>protocol=maxscaled</p>
+<p>socket=default</p>
+<p>port=4026                    #自定义端口号，不写使用默认端口</p>
+<p>#user=maxscale          #用户名默认admin</p>
+<p>#passwd=Mhu87p2D　　#密码默认mariadb</p>
+</blockquote><p><br></p><p><b>51,52添加授权</b></p><p><b>51，52主机都要添加权限</b></p><blockquote>
+<p>mysql&gt; grant select,insert on db1.* to rose@'%' identified by '123456';　#授予客户端相应访问权限</p>
+<p>mysql&gt; grant replication slave,replication client on *.* to scalemon@'%'</p>
+<p>-&gt; identified by '123456';           #授权给maxscale</p>
+<p>mysql&gt; grant select on mysql.* to pliadmin@'%' identified by '123456'; #授权给maxscal</p>
+<p>提示：授权地址必须写’%’，否则会自动添加上ipv6地址，就会出错</p>
+<p>replication slave：常用于建立复制时所需要用到的用户权限，也就是slave server必须被master server授权具有该权限的用户，才能通过该用户复制master server 的binlog日志sql语句。</p>
+<p>并且"SHOW SLAVE HOSTS"这条命令和REPLICATION SLAVE权限有关，否则执行时会报错：</p>
+<p>  ERROR 1227 (42000): Access denied; you need (at least one of) the REPLICATION SLAVE privilege(s) for this operation</p>
+<p><br></p>
+<p>replication client：不可用于建立复制，有该权限时，只是多了可以使用如"SHOW SLAVE STATUS"、"SHOW MASTER STATUS"等命令。</p>
+<p>在5.6.6版本以后，也可以使用"SHOW BINARY LOGS"</p>
+</blockquote><p><b>52主机</b></p><blockquote>
+<p>mysql&gt; select user,host from mysql.user;</p>
+<p>+-----------+-----------+</p>
+<p>| user      | host      |</p>
+<p>+-----------+-----------+</p>
+<p>| pliadmin  | %         |</p>
+<p>| scalemon  | %         |</p>
+</blockquote><p><b>57主机</b></p><blockquote>
+<p>[root@myweb-57 jluo]# maxscale -f /etc/maxscale.cnf    #开启服务</p>
+<p>[root@myweb-57 jluo]# ss -tunlp | grep maxscale</p>
+<p>tcp    LISTEN     0      128      :::4026                 :::*                   users:(("maxscale",pid=4498,fd=12))</p>
+<p>tcp    LISTEN     0      128      :::4006                 :::*                   users:(("maxscale",pid=4498,fd=11))</p>
+<p>[root@myweb-57 jluo]# killall -9 maxscale　　#停止服务</p>
+<p>提示：注意57主机上不能运行mysql数据库服务</p>
+</blockquote><p><b>３）客户端验证</b></p><p>在maxscale本机连接管理端口</p><p>Maxadmin  -uadmin  -pmariadb  -P端口</p><p>访问maxscale代理</p><p>Mysql  -h服务器地址　-P端口　-u用户名　-p密码</p><p>在57本机访问管理服务查看监控信息</p><blockquote>
+<p>[root@myweb-57 jluo]# maxadmin -uadmin -pmariadb -P4026</p>
+<p>MaxScale&gt; list servers</p>
+<p>Servers.</p>
+<p>-------------------+-----------------+-------+-------------+--------------------</p>
+<p>Server             | Address         | Port  | Connections | Status              </p>
+<p>-------------------+-----------------+-------+-------------+--------------------</p>
+<p>server1            | 192.168.4.51    |  3306 |           0 | Master, Running</p>
+<p>server2            | 192.168.4.52    |  3306 |           0 | Slave, Running</p>
+<p><br></p>
+</blockquote><h4>第三节测试</h4><p>在客户端主机连接57对数据进行访问，测试能否实现读写分离</p><p><b>测试一：</b></p><p><b>51主机</b></p><blockquote>
+<p>mysql&gt; insert into db1.t1 values(11);</p>
+<p>Client主机</p>
+<p>[root@mysql-50 ~]# mysql -h192.168.4.57 -P4006 -urose -p123456</p>
+<p>mysql&gt; select * from db1.t1;</p>
+<p>+------+</p>
+<p>| id   |</p>
+<p>+------+</p>
+<p>|   11 |</p>
+</blockquote><p><b>测试二：</b></p><p><b>52主机</b></p><blockquote>
+<p>mysql&gt; insert into db1.t1 values(52);　　#主机51没有这条数据</p>
+<p>Client主机</p>
+<p>mysql&gt; select * from db1.t1;</p>
+<p>+------+</p>
+<p>| id   |</p>
+<p>+------+</p>
+<p>|   11 |</p>
+<p>|   52 |</p>
+</blockquote><p><b>测试三：</b></p><p><b>Client主机：</b></p><blockquote>
+<p>mysql&gt; insert into db1.t1 values(50);</p>
+<p>mysql&gt; select * from db1.t1;</p>
+<p>+------+</p>
+<p>| id   |</p>
+<p>+------+</p>
+<p>|   11 |</p>
+<p>|   52 |</p>
+<p>|   50 |</p>
+</blockquote><p><br></p><p>综上三个测试可知，实现了读写分离</p><p><br></p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package  " data-index="1">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3f085b43249c1ad6.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" style="min-height:200px;min-width:200px;" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

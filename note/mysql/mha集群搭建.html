@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mha集群搭建</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">mha集群搭建</h1>
+        <div class="show-content">
+          <h3>第一节 前言</h3><h4>1.1MHA（master hight availability）（至少3台）<br>
+</h4><p>由日本DeNA公司youshimaton开发</p><p>是一套优秀的实现mysql高可用的解决方案</p><p>数据库的自动故障切换操作能做到0～30秒之内</p><p>mha能确保在故障切换过程中保证数据的一致性，以达到真正意义上的高可用</p><h4>1.2MHA组成</h4><p>MHA Manager</p><p>可以单独部署在一台独立的机器上，管理其他节点</p><p>也可以部署在一台slave节点上</p><p>MHA Node</p><p>运行在每台mysql服务器上</p><h4>1.3MHA集群构架</h4><p><br></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4bd3d47a2b81b816.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h4>1.4MHA工作过程</h4><p>由manager定时探测集群中的master节点</p><p>当master故障时,manager自动将拥有最新数据的slave提升为新的master</p><p><b>关键点：</b></p><blockquote>
+<p>从宕机崩溃的master保存二进制日志文件事件</p>
+<p>识别含有最新更新的slave</p>
+<p>应用差异的中继日志(relay-log)到其他的slave</p>
+<p>应用从master保存的二进制日志事件</p>
+<p>提升一个slave为新的master</p>
+<p>使其他的slave连接新的master进行复制</p>
+</blockquote><h3>第二节工具准备</h3><blockquote>
+<p><a href="https://www.centos.org/download/" target="_blank">linux</a>==&gt;CentOS Linux release 7.4.1708 (Core)</p>
+<p><a href="https://dev.mysql.com/downloads/mysql/" target="_blank">mysql</a>==&gt;mysql-5.7.26</p>
+<p>mha==&gt;mha5-0.58    </p>
+<p>链接：https://pan.baidu.com/s/1mH37WCTkbmJjJiuPqG51PA   提取码：jt7e</p>
+</blockquote><h3>第三节实战操作</h3><p><b>为了试验方便所有主机作如下操作</b></p><blockquote>
+<p>[root@mysql102 ~]# setenforce 0</p>
+<p>[root@mysql102 ~]# vim /etc/selinux/config</p>
+<p>SELINUX=enforcing</p>
+<p>[root@mysql102 ~]# systemctl stop firewalld</p>
+<p>[root@mysql102 ~]# systemctl disable firewalld</p>
+<p>[root@mysql102 ~]# iptables -F</p>
+<p>[root@mysql102 ~]# yum -y install iptables-services</p>
+<p>[root@mysql102 ~]# service iptables save</p>
+</blockquote><h4>3.1安装mysql</h4><p><b>50，102-105主机</b></p><blockquote>
+<p>[root@
+
+mysql103 mysql]# ls</p>
+<p>mysql-community-client-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-common-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-devel-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-embedded-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-embedded-compat-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-embedded-devel-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-libs-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-libs-compat-5.7.26-1.el7.x86_64.rpm</p>
+<p>mysql-community-server-5.7.26-1.el7.x86_64.rpm</p>
+<p>[root@
+
+mysql103 
+
+mysql]# yum -y install *.rpm</p>
+<p>[root@
+
+mysql103 
+
+~]# systemctl start mysqld</p>
+<p>[root@
+
+mysql103 
+
+~]# systemctl enable mysqld</p>
+<p>[root@
+
+mysql103 
+
+~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>character_set_server=utf8</p>
+<p>validate_password_length=6</p>
+<p>validate_password_policy=0</p>
+<p>[root@mysql103 
+
+~]# systemctl restart mysqld</p>
+<p>[root@
+
+mysql103  ~]# grep 'temporary password' /var/log/mysqld.log</p>
+<p>2019-05-21T02:11:44.275556Z 1 [Note] A temporary password is generated for root@localhost: s8!jd=Ju=dHn</p>
+<p>[root@
+
+mysql103 ~]# mysql -uroot -p's8!jd=Ju=dHn'</p>
+<p>mysql&gt;  alter user user() identified by 'Luojun.com522527';</p>
+</blockquote><h4>3.2主从配置<br>
+</h4><p><b>1）102主机</b></p><blockquote>
+<p>[root@mysql102 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>.......</p>
+<p>log_bin=master102</p>
+<p>server_id=1</p>
+<p>binlog_format="mixed"</p>
+<p>relay_log_purge=off</p>
+<p>plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"</p>
+<p>rpl-semi-sync-master-enabled=1</p>
+<p>rpl-semi-sync-slave-enabled=1</p>
+<p>.........</p>
+<p>[root@mysql102 ~]# systemctl restart mysqld</p>
+<p>[root@mysql102 ~]# mysql -uroot -pLuojun.com522527</p>
+<p>mysql&gt; grant replication slave on *.* to repluser@'%' identified by '123456';</p>
+<p>mysql&gt; show master status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>             File: master102.000014</p>
+<p>         Position: 441</p>
+<p>     Binlog_Do_DB:</p>
+<p> Binlog_Ignore_DB:</p>
+<p>Executed_Gtid_Set:</p>
+<p>1 row in set (0.00 sec)</p>
+<p>mysql&gt; exit</p>
+</blockquote><p><b>2）103主机</b></p><blockquote>
+<p>[root@
+
+mysql103 
+
+~]# vim /etc/my.cnf</p>
+<p>......</p>
+<p>log_bin=master103</p>
+<p>server_id=3</p>
+<p>binlog_format="mixed"</p>
+<p>relay_log_purge=off</p>
+<p>plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"</p>
+<p>rpl-semi-sync-master-enabled=1</p>
+<p>rpl-semi-sync-slave-enabled=1</p>
+<p>......</p>
+<p>[root@
+
+mysql103 
+
+~]# systemctl restart mysqld</p>
+<p>[root@
+
+mysql103 
+
+~]# mysql -uroot -pLuojun.com522527</p>
+<p>mysql&gt; grant replication slave on *.* to repluser@'%' identified by '123456';</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host='192.168.68.102',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>    -&gt; master_log_file='master102.000014',</p>
+<p>    -&gt; master_log_pos=441;</p>
+<p>mysql&gt; start slave;</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.68.102</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master102.000014</p>
+<p>          Read_Master_Log_Pos: 441</p>
+<p>               Relay_Log_File: dispatch103-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 320</p>
+<p>        Relay_Master_Log_File: master102.000014</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+<p>..........</p>
+<p>mysql&gt; exit</p>
+</blockquote><p><b>3）104主机</b></p><blockquote>
+<p>[root@mysql104 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>......</p>
+<p>log_bin=master104</p>
+<p>server_id=4</p>
+<p>binlog_format="mixed"</p>
+<p>relay_log_purge=off</p>
+<p>plugin-load="rpl_semi_sync_master=semisync_master.so;rpl_semi_sync_slave=semisync_slave.so"</p>
+<p>rpl-semi-sync-master-enabled=1</p>
+<p>rpl-semi-sync-slave-enabled=1</p>
+<p>[root@
+
+mysql104 
+
+~]# systemctl restart mysqld</p>
+<p>[root@
+
+mysql104 
+
+~]# mysql -uroot -pLuojun.com522527</p>
+<p>mysql&gt; grant replication slave on *.* to repluser@'%' identified by '123456';</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host='192.168.68.102',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>    -&gt; master_log_file='master102.000014',</p>
+<p>    -&gt; master_log_pos=441;</p>
+<p>mysql&gt; start slave;</p>
+<p>Query OK, 0 rows affected (0.00 sec)</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.68.102</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master102.000014</p>
+<p>          Read_Master_Log_Pos: 441</p>
+<p>               Relay_Log_File: dispatch104-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 320</p>
+<p>        Relay_Master_Log_File: master102.000014</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+<p>..............</p>
+<p>mysql&gt; exit</p>
+</blockquote><p><b>4）105主机</b></p><blockquote>
+<p>[root@mysql105 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>.........</p>
+<p>server_id=5</p>
+<p>relay_log_purge=off</p>
+<p>plugin_load="rpl_semi_sync_slave=semisync_slave.so"</p>
+<p>rpl_semi_sync_slave_enabled=1</p>
+<p>........</p>
+<p>[root@mysql105 ~]# systemctl restart mysqld</p>
+<p>[root@mysql105 ~]# mysql -uroot -pLuojun.com522527</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host='192.168.68.102',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>    -&gt; master_log_file='master102.000014',</p>
+<p>    -&gt; master_log_pos=441;</p>
+<p>mysql&gt; start slave;</p>
+<p>Query OK, 0 rows affected (0.02 sec)</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.68.102</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master102.000014</p>
+<p>          Read_Master_Log_Pos: 441</p>
+<p>               Relay_Log_File: mysql105-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 320</p>
+<p>        Relay_Master_Log_File: master102.000014</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+<p>.....</p>
+<p>mysql&gt; exit</p>
+</blockquote><p><b>5）50主机</b></p><blockquote>
+<p>[root@mysql50 ~]# vim /etc/my.cnf</p>
+<p>[mysqld]</p>
+<p>.........</p>
+<p>server_id=2</p>
+<p>relay_log_purge=off</p>
+<p>plugin_load="rpl_semi_sync_slave=semisync_slave.so"</p>
+<p>rpl_semi_sync_slave_enabled=1</p>
+<p>.....</p>
+<p>[root@
+
+mysql50 
+
+~]# systemctl restart mysqld</p>
+<p>[root@
+
+mysql50 
+
+~]# mysql -uroot -pLuojun.com522527</p>
+<p>mysql&gt; change master to</p>
+<p>    -&gt; master_host='192.168.68.102',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>    -&gt; master_log_file='master102.000014',</p>
+<p>    -&gt; master_log_pos=441;</p>
+<p>mysql&gt; start slave;</p>
+<p>Query OK, 0 rows affected (0.01 sec)</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>                  Master_Host: 192.168.68.102</p>
+<p>                  Master_User: repluser</p>
+<p>                  Master_Port: 3306</p>
+<p>                Connect_Retry: 60</p>
+<p>              Master_Log_File: master102.000014</p>
+<p>          Read_Master_Log_Pos: 441</p>
+<p>               Relay_Log_File: web50-relay-bin.000002</p>
+<p>                Relay_Log_Pos: 320</p>
+<p>        Relay_Master_Log_File: master102.000014</p>
+<p>             Slave_IO_Running: Yes</p>
+<p>            Slave_SQL_Running: Yes</p>
+<p>.......</p>
+<p>mysql&gt; exit</p>
+</blockquote><p><b>6）测试主从</b></p><p>在master主102上创建库，在其他103,104,105,50上验证</p><p>建库：</p><blockquote><p>mysql&gt; create database testDB;</p></blockquote><p>验证：</p><blockquote>
+<p>mysql&gt; show databases;</p>
+<p>+--------------------+</p>
+<p>| Database           |</p>
+<p>+--------------------+</p>
+<p>| information_schema |</p>
+<p>| bbsdb              |</p>
+<p>| mysql              |</p>
+<p>| performance_schema |</p>
+<p>| sys                |</p>
+<p>| testDB             |</p>
+</blockquote><p><br></p><h4>3.3集群环境准备</h4><p><b>1）50,102-105相互无密码连接(以102为例，所有主机都做)</b></p><blockquote>
+<p>[root@mysql102 ~]# ssh-keygen -f "/root/.ssh/id_rsa" -N ""</p>
+<p>[root@mysql102 ~]# for i in 50 102 103 104 105</p>
+<p>&gt; do</p>
+<p>&gt; ssh-copy-id 192.168.68.$i</p>
+<p>&gt; done</p>
+</blockquote><p><b>2）106无密码连接50,102-105</b></p><blockquote>
+<p>[root@mysql106 ~]# ssh-keygen -f "/root/.ssh/id_rsa" -N ""</p>
+<p>[root@mysql106 ~]# for i in 50 102 103 104 105 106</p>
+<p>&gt; do</p>
+<p>&gt; ssh-copy-id 192.168.68.$i</p>
+<p>&gt; done</p>
+</blockquote><p><b>3）50,102-106安装perl软件包（以102为例）</b></p><blockquote>
+<p>[root@mysql102 ~]# yum -y install epel-release  </p>
+<p>[root@mysql102 ~]# yum -y install perl-*</p>
+</blockquote><h4>3.4安装MHA集群软件</h4><p><b>1）50，102-105主机安装mha-node</b></p><blockquote>
+<p>[root@mysql102 iso]# ls</p>
+<p>mha4mysql-node-0.58.tar.gz</p>
+<p>[root@mysql102 iso]# tar -xvf mha4mysql-node-0.58.tar.gz</p>
+<p>[root@mysql102 mha4mysql-node-0.58]# perl Makefile.PL</p>
+<p>[root@mysql102 mha4mysql-node-0.58]# make</p>
+<p>[root@mysql102 mha4mysql-node-0.58]# make install</p>
+</blockquote><p><b>2）106主机安装mha-manage</b></p><blockquote>
+<p>[root@mysql106 iso]# tar -xvf mha4mysql-manager-0.58.tar.gz</p>
+<p>[root@mysql106 mha4mysql-manager-0.58]# perl Makefile.PL</p>
+<p>[root@mysql106 mha4mysql-manager-0.58]# make</p>
+<p>[root@mysql106 mha4mysql-manager-0.58]# make install</p>
+</blockquote><h4>3.5配置集群</h4><p><b>1）查看master管理命令是否正确</b></p><blockquote>
+<p>[root@mysql106 iso]# ls /root/perl5/bin/master*</p>
+<p>/root/perl5/bin/masterha_check_repl    /root/perl5/bin/masterha_master_monitor</p>
+<p>/root/perl5/bin/masterha_check_ssh    /root/perl5/bin/masterha_master_switch</p>
+<p>/root/perl5/bin/masterha_check_status  /root/perl5/bin/masterha_secondary_check</p>
+<p>/root/perl5/bin/masterha_conf_host    /root/perl5/bin/masterha_stop</p>
+<p>/root/perl5/bin/masterha_manager</p>
+<p>[root@mysql106 ~]# echo 'export PATH=/root/perl5/bin:$PATH' &gt;&gt; /etc/profile[root@mysql106 ~]# source /etc/profile</p>
+</blockquote><p><b>２）配置管理节点主机配置文件</b></p><blockquote>
+<p>#新建目录</p>
+<p>[root@mysql106 mha4mysql-manager-0.58]# mkdir /etc/mha</p>
+<p>#拷贝配置文件过去</p>
+<p>[root@mysql106 mha4mysql-manager-0.58]# cp samples/conf/app1.cnf /etc/mha/</p>
+<p>[root@mysql106 ~]# vim /etc/mha/app1.cnf</p>
+<p>[server default]</p>
+<p>manager_workdir=/etc/mha    #管理主机的工作目录</p>
+<p>manager_log=/etc/mha/manager.log   #日志</p>
+<p>master_ip_failover_script=/etc/mha/master_ip_failover   #故障切换脚本位置和名称（perl）</p>
+<p>ssh_user=root　                #106登录50,102-105的用户名</p>
+<p>ssh_port=22                       #端口号</p>
+<p>repl_user=repluser             #主从同步用户名</p>
+<p>repl_password=123456       </p>
+<p>user=root                          #数据库用户名，106监视主库用的</p>
+<p>password=123456</p>
+<p>[server1]</p>
+<p>hostname=192.168.68.102             #主机ip</p>
+<p>port=3306</p>
+<p>candidate_master=1                       #设置为候选主库master</p>
+<p>[server2]</p>
+<p>hostname=192.168.68.103</p>
+<p>port=3306</p>
+<p>candidate_master=1</p>
+<p>[server3]</p>
+<p>hostname=192.168.68.104</p>
+<p>port=3306</p>
+<p>candidate_master=1</p>
+<p>[server4]</p>
+<p>hostname=192.168.68.50</p>
+<p>port=3306</p>
+<p>no_master=1                            #不竟选主库master</p>
+<p>[server4]</p>
+<p>hostname=192.168.68.105</p>
+<p>port=3306</p>
+<p>no_master=1</p>
+</blockquote><p><b>３）创建vip地址切换脚本</b></p><blockquote>
+<p>[root@mysql106 ~]# cp /iso/master_ip_failover  /etc/mha/    #此脚本已经分享了</p>
+<p>[root@mysql106 ~]# chmod +x /etc/mha/master_ip_failover</p>
+<p>[root@mysql106 ~]# vim /etc/mha/master_ip_failover</p>
+<p>.......</p>
+<p>my $vip = '192.168.68.240/24';  # Virtual IP      </p>
+<p>my $key = "1";</p>
+<p>my $ssh_start_vip = "/sbin/ifconfig ens33:$key $vip";     #网卡名称具体看主机，我的是ens33</p>
+<p>my $ssh_stop_vip = "/sbin/ifconfig ens33:$key down";   #网卡名称具体看主机，我的是ens33</p>
+<p>...........</p>
+</blockquote><p><b>４）50,102-105授权root给106</b></p><p>直接在主库102操作自动会同步过去</p><blockquote>
+<p>[root@mysql102 ~]# mysql -uroot -pLuojun.com522527</p>
+<p>mysql&gt; grant all on *.* to root@'192.168.68.%' identified by '123456';  # 具体网段看实际情况，我的是192.168.68.0/24</p>
+<p>mysql&gt; select user,host from mysql.user where user='root';　#验证是否添加成功</p>
+</blockquote><p><b>５）把vip地址绑定在当前主库102的eth0接口上</b></p><blockquote>
+<p>[root@mysql102 ~]# ifconfig ens33:1 192.168.68.240　　#临时绑定vip,不能设置永久的，否则切换不了</p>
+<p>[root@mysql102 ~]# ifconfig ens33:1ens33:1: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;  mtu 1500</p>
+<p>    inet 192.168.68.240  netmask 255.255.255.0  broadcast 192.168.68.255</p>
+<p>   ether 00:0c:29:bc:30:ca  txqueuelen 1000  (Ethernet)</p>
+</blockquote><h4>3.6启动</h4><p><b>1）检查</b></p><p>##在管理节点上做ssh检查</p><blockquote>
+<p>[root@mysql106 ~]#  masterha_check_ssh --conf=/etc/mha/app1.cnf</p>
+<p>Mon Nov 26 16:47:08 2018 - [info] All SSH connection tests passed successfully.</p>
+<p>##在管理节点上查看集群状态</p>
+<p>[root@mysql106 ~]# masterha_check_repl --conf=/etc/mha/app1.cnf</p>
+<p>MySQL Replication Health is OK.</p>
+</blockquote><p><b>2）启动服务</b></p><blockquote>
+<p>masterha_manager --conf=/etc/mha/app1.cnf　[选项]</p>
+<p>--remove_dead_master_conf   #在/etc/mha/app1.cnf删除宕机主库配置</p>
+<p>--ignore_last_failover       #忽略xxx.headlth文件，即8个小时连续故障切换vip</p>
+<p>命令：</p>
+<p>[root@mysql106  ~]# masterha_manager --conf=/etc/mha/app1.cnf \</p>
+<p>&gt; --remove_dead_master_conf --ignore_last_failover　#注意终端会挂起</p>
+<p>[root@mysql106  ~]# masterha_check_status --conf=/etc/mha/app1.cnf　#查看状态</p>
+<p>app1 (pid:9196) is running(0:PING_OK), master:192.168.4.51</p>
+</blockquote><h3>第四节测试</h3><p><b>测试一：插入查看</b></p><p>50客户端:</p><blockquote>
+<p>[root@mysql50 ~]# mysql -uroot -p123456 -h192.168.68.240</p>
+<p>mysql&gt;create database db8;</p>
+<p>mysql&gt;create table db8.t1(id int);</p>
+<p>mysql&gt; insert into db8.t1 values (51);</p>
+<p>mysql&gt; insert into db8.t1 values (50);</p>
+<p>mysql&gt; insert into db8.t1 values (88);</p>
+<p>mysql&gt; select * from db8.t1;</p>
+<p>+------+</p>
+<p>| id   |</p>
+<p>+------+</p>
+<p>|   51 |</p>
+<p>|   50 |</p>
+<p>|   88 |</p>
+</blockquote><p><b>测试二：关闭102主机查看主库位置</b></p><blockquote>
+<p>[root@mysql102 jluo]# systemctl stop mysqld</p>
+<p>刚才50上</p>
+<p>mysql&gt; select @@hostname;　　　　#刚才开的终端并没有断开</p>
+<p>+------------+</p>
+<p>| @@hostname |</p>
+<p>+------------+</p>
+<p>| mysql103   |　　　　　　　　　#说明已经切换主库了</p>
+<p>也可在54从库中查看主库信息</p>
+<p>mysql&gt; show slave status\G;</p>
+<p>*************************** 1. row ***************************</p>
+<p>               Slave_IO_State: Waiting for master to send event</p>
+<p>Master_Host: 192.168.68.103　　　　　#主机ip是主机103的</p>
+<p><br></p>
+<p>在106配置文件查看是否有server1的配置</p>
+<p>[root@mysql-56 ~]# cat /etc/mha/app1.cnf | grep server1　#无显示</p>
+<p>[root@mysql-56 ~]# masterha_check_status --conf=/etc/mha/app1.cnf</p>
+<p>app1 is stopped(2:NOT_RUNNING).　　#主库挂了，hma-manager（管理节点）就被杀死，最后触发脚本执行主库切换操作</p>
+<p>154　　　　　　692</p>
+</blockquote><p><b>测试三：恢复102数据库服务</b></p><blockquote>
+<p>[root@mysql106 ~]# vim /etc/mha/app1.cnf　　#添加如下几行</p>
+<p>[server1]</p>
+<p>candidate_master=1</p>
+<p>hostname=192.168.68.102</p>
+<p>port=3306</p>
+<p><br></p>
+<p>102主机：设置为103的从库</p>
+<p>mysql&gt; change master to \</p>
+<p>    -&gt; master_host='192.168.68.103',</p>
+<p>    -&gt; master_user='repluser',</p>
+<p>    -&gt; master_password='123456',</p>
+<p>    -&gt; master_log_file='master103.000008',</p>
+<p>    -&gt; master_log_pos=441;</p>
+<p>mysql&gt; start slave;</p>
+<p><br></p>
+</blockquote><h3>
+<b>参数解读</b><br>
+</h3><p>参数信息参数含义备注</p><blockquote>
+<p>manager_workdir                       #设置manager的工作目录</p>
+<p>manager_log                              #设置manager的日志</p>
+<p>master_binlog_dir                     #设置master 保存binlog的位置，以便MHA可以找到master的日志</p>
+<p>master_ip_failover_script         #设置自动failover时候的切换脚本</p>
+<p>master_ip_online_change_script    #设置手动切换时候的切换脚本</p>
+<p>password                                  #设置mysql中root用户的密码</p>
+<p>user                                        #设置监控用户root</p>
+<p>ping_interval                             #设置监控主库，发送ping包的时间间隔，默认是3秒，尝试三次没有回应的时候自动进行railover</p>
+<p>remote_workdir                     #设置远端mysql在发生切换时binlog的保存位置</p>
+<p>repl_password                        #设置复制用户的密码</p>
+<p>repl_user                         #设置复制环境中的复制用户名</p>
+<p>report_script                   #设置发生切换后发送的报警的脚本</p>
+<p>shutdown_script               #设置故障发生后关闭故障主机脚本（该脚本的主要作用是关闭主机防止发生脑裂,这里没有使用）</p>
+<p>ssh_user                     #设置ssh的登录用户名</p>
+<p>hostname                    #主机名／IP</p>
+<p>port                              #端口号</p>
+<p>candidate_master       #设置为候选master，如果设置该参数以后，发生主从切换以后将会将此从库提升为主库，即使这个主库不是集群中事件最新的slave</p>
+<p>check_repl_delay        #默认情况下如果一个slave落后master 100M的relay logs的话，MHA将不会选择该slave作为一个新的master，因为对于这个slave的恢复需要花费很长时间，通过设置check_repl_delay=0,MHA触发切换在选择一个新的master的时候将会忽略复制延时，这个参数对于设置了candidate_master=1的主机非常有用，因为这个候选主在切换的过程中一定是新的master</p>
+</blockquote><p><br></p><h3><b>错误汇总</b></h3><p><b>1，可能错误1</b></p><blockquote>
+<p>[root@dispatch103 mha4mysql-node-0.58]# perl Makefile.PL</p>
+<p>*** Module::AutoInstall version 1.06</p>
+<p>*** Checking for Perl dependencies...</p>
+<p>[Core Features]</p>
+<p>- DBI        ...loaded. (1.627)</p>
+<p>- DBD::mysql ...missing.</p>
+<p>[root@dispatch103 mha4mysql-node-0.58]# yum -y install perl-DBD-MySQL</p>
+</blockquote><p><b>2，可能错误2</b></p><blockquote>
+<p>[root@mysql106 mha4mysql-manager-0.58]# perl Makefile.PL</p>
+<p>*** Module::AutoInstall version 1.06</p>
+<p>*** Checking for Perl dependencies...</p>
+<p>[Core Features]</p>
+<p>- DBI                   ...loaded. (1.627)</p>
+<p>- DBD::mysql            ...loaded. (4.023)</p>
+<p>- Time::HiRes           ...loaded. (1.9725)</p>
+<p>- Config::Tiny           ...missing.                       </p>
+<p>- Log::Dispatch         ...missing.</p>
+<p>- Parallel::ForkManager ...missing.</p>
+<p>- MHA::NodeConst        ...loaded. (0.58)</p>
+<p>[root@mysql106 mha4mysql-manager-0.58]# yum -y install  liblog-dispatch-perl  libparallel-forkmanager-per libconfig-tiny-perl</p>
+</blockquote><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-c2540a8e9a1cc472.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
