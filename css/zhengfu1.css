@@ -24,11 +24,11 @@ and open the template in the editor.
 }
 .section3 .ball_c {
     position: absolute;
-    width: 225px;
+    width: 100px;
     height: 157px;
     line-height: 157px;
     text-align: center;
-    background: url(https://luodidiao.github.io/image/zfzs.png) no-repeat;
+   /* background: url(https://luodidiao.github.io/image/z11fzs.png) no-repeat; */
     left:380px;
     top: 190px;
 }
