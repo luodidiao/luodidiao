@@ -1,3 +1,2 @@
-# luodidiao.github.com
-本站博客
+#本站博客:luodidiao.github.com
 ![Image text](https://luodidiao.github.io/image/luo.jpg)
