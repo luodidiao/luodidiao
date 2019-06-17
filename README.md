@@ -10,6 +10,10 @@
 
 ![Image text](https://luodidiao.github.io/image/blog2.jpg)
 
+#爱旅游
+
+![Image text](https://luodidiao.github.io/image/blog4.jpg)
+
 #爱技术
 
 ![Image text](https://luodidiao.github.io/image/blog3.jpg)
