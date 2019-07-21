@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部署efk+kafka高并发日志收集系统</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">部署efk+kafka高并发日志收集系统</h1>
+        <div class="show-content">
+          <h1><br></h1><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-ae6fa61f7efe8956.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h1>一架构&amp;详解</h1><p><b>架构图：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-bb9cced4fe01e417.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p>本次实验主要以采集nginx日志为例，采用filebeat采集日志，传输到kafka，然后到logstash处理后存储到es中，kibana再从es中读取数据做数据可视化展示。</p><p><b>详情：</b></p><p>elk212 ==&gt; 192.168.68.212</p><p>elk214 ==&gt; 192.168.68.213</p><p>elk214 ==&gt; 192.168.68.214</p><p>web50 ==&gt; 192.168.68.50</p><p><br></p><h1>二工具&amp;原料<br>
+</h1><p><b>1、系统环境与软件详情</b></p><p>elasticsearch-7.2.0</p><p>kibana-7.2.0</p><p>logstash-7.2.0</p><p>filebeat-7.2.0</p><p>kafka_2.12-2.2.1</p><p>jdk-8u211-linux-x64</p><p><b>系统详情：[elk212,elk213,elk214]</b></p><blockquote>
+<p>[root@elk212 iso]# cat /etc/redhat-release</p>
+<p>CentOS Linux release 7.4.1708 (Core)</p>
+<p>[root@elk212 iso]# uname -r</p>
+<p>3.10.0-693.el7.x86_64</p>
+<p>[root@elk212 ~]# sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config</p>
+<p>[root@elk212 ~]# setenforce 0</p>
+<p>[root@elk212 ~]# systemctl stop firewalld</p>
+<p>[root@elk212 ~]# systemctl disable firewalld</p>
+<p>[root@elk212 iso]# yum -y install  iptables-services</p>
+<p>[root@elk212 iso]# iptables -F</p>
+<p>[root@elk212 iso]# service iptables save</p>
+<p>[root@elk212 ~]# echo '192.168.68.212 elk212' &gt;&gt; /etc/hosts</p>
+<p>[root@elk212 iso]# vim /etc/security/limits.conf</p>
+<p>* soft nofile 100000</p>
+<p>* hard nofile 100000</p>
+<p>* soft nproc 100000</p>
+<p>* hard nproc 100000</p>
+<p>[root@elk212 iso]# ulimit -SHn 100000</p>
+<p>[root@elk212 es]# echo 'vm.max_map_count=262144' &gt;&gt; /etc/sysctl.conf</p>
+<p>[root@elk212 es]# sysctl -p</p>
+<p>vm.max_map_count = 262144</p>
+</blockquote><h1>三方法&amp;步骤</h1><p><b>1、服务端</b></p><p><b>1）安装java[elk212,elk213,elk214]</b></p><blockquote>
+<p>[root@elk212 iso]# tar -xvf jdk-8u211-linux-x64.tar.gz</p>
+<p>[root@elk212 iso]# mv jdk1.8.0_211 /usr/local/java</p>
+<p>[root@elk212 iso]# vim /etc/profile</p>
+<p>export JAVA_HOME=/usr/local/java</p>
+<p>export PATH=$JAVA_HOME/bin:$PATH</p>
+<p>[root@elk212 iso]# source /etc/profile</p>
+<p>[root@elk212 iso]# java -version</p>
+<p>java version "1.8.0_211"</p>
+<p>Java(TM) SE Runtime Environment (build 1.8.0_211-b12)</p>
+<p>Java HotSpot(TM) 64-Bit Server VM (build 25.211-b12, mixed mode)</p>
+</blockquote><p><b>2）安装kafka[elk212,elk213,elk214]</b></p><p><b>****安装配置****</b></p><blockquote>
+<p>[root@elk212 iso]# tar -xvf kafka_2.12-2.2.1.tgz</p>
+<p>[root@elk212 iso]# mv kafka_2.12-2.2.1 /usr/local/kafka</p>
+<p>[root@elk212 iso]# cd /usr/local/kafka/config</p>
+<p>[root@elk212 config]#  grep -Ev "^$|^#" server.properties</p>
+<p>broker.id=1    #elk213:2  elk214:3</p>
+<p>delete.topic.enable=true</p>
+<p>listeners=PLAINTEXT://192.168.68.212:9092  #本机ip</p>
+<p>num.network.threads=3</p>
+<p>num.io.threads=8</p>
+<p>socket.send.buffer.bytes=102400</p>
+<p>socket.receive.buffer.bytes=102400</p>
+<p>socket.request.max.bytes=104857600</p>
+<p>log.dirs=/data/kafka-logs</p>
+<p>num.partitions=12</p>
+<p>num.recovery.threads.per.data.dir=1</p>
+<p>offsets.topic.replication.factor=1</p>
+<p>transaction.state.log.replication.factor=1</p>
+<p>transaction.state.log.min.isr=1</p>
+<p>log.retention.hours=168</p>
+<p>log.segment.bytes=1073741824</p>
+<p>log.retention.check.interval.ms=300000</p>
+<p>zookeeper.connect=192.168.68.212:2181,192.168.68.213:2181,192.168.68.214:2181</p>
+<p>zookeeper.connection.timeout.ms=10000</p>
+<p>group.initial.rebalance.delay.ms=0</p>
+<p>[root@elk212 config]# grep -Ev "^$|^#" consumer.properties</p>
+<p>bootstrap.servers=192.168.68.212:9092,192.168.68.213:9092,192.168.68.214:9092    </p>
+<p>zookeeper.connection.timeout.ms=60000</p>
+<p>group.id=test-consumer-group</p>
+<p>[root@elk212 config]# grep -Ev "^$|^#" producer.properties</p>
+<p>bootstrap.servers=192.168.68.212:9092,192.168.68.213:9092,192.168.68.214:9092</p>
+<p>compression.type=none</p>
+<p>[root@elk212 config]# mkdir /data/kafka-logs -p</p>
+</blockquote><p><b>****检查配置****</b></p><p>#分别启动三台zookeeper，查看有无报错（无报错不要关闭，等待kafka来注册）</p><blockquote><p>[root@elk212 config]# /usr/local/kafka/bin/zookeeper-server-start.sh /usr/local/kafka/config/zookeeper.properties</p></blockquote><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-e92671edc312e8ce.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-f665742bec9e124f.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3442604e152569d9.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><br></p><p>#在另一个终端再分别启动三台kafka，查看有无报错[提示，先启动三台zookeeper]</p><blockquote><p>[root@elk212 ~]# /usr/local/kafka/bin/kafka-server-start.sh /usr/local/kafka/config/server.properties</p></blockquote><p><br></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-e495da1bb7831f2c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-91c3d6b350328eed.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-031cd169cc601336.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><blockquote>
+<p>[root@elk212 ~]# ss -tunl | grep -E ':9092|2181'</p>
+<p>tcp    LISTEN     0      50        ::ffff:192.168.68.212:9092                 :::*                 </p>
+<p>tcp    LISTEN     0      50       :::2181                 :::*</p>
+</blockquote><p><b>**编写简单管理kafka脚本**</b></p><p>每一台都需要编写</p><blockquote>
+<p>[root@elk212 ~]# vim /usr/local/kafka/kafka.sh</p>
+<p>#!/bin/bash</p>
+<p>if [ $# -eq 1 ];then</p>
+<p>    case $1 in</p>
+<p>    start)</p>
+<p>        echo -e '\033[32mkafka启动中....\033[0m'</p>
+<p>        nohup /usr/local/kafka/bin/zookeeper-server-start.sh /usr/local/kafka/config/zookeeper.properties &amp;</p>
+<p>        sleep 8</p>
+<p>        nohup /usr/local/kafka/bin/kafka-server-start.sh /usr/local/kafka/config/server.properties &amp;</p>
+<p>        sleep 1</p>
+<p>        echo -e '\033[32mkafka启动成功....\033[0m';;</p>
+<p>    stop)</p>
+<p>        echo -e '\033[32mkafka停止中....\033[0m'</p>
+<p>        nohup /usr/local/kafka/bin/kafka-server-stop.sh /usr/local/kafka/config/server.properties &amp;</p>
+<p>        sleep 5</p>
+<p>        nohup /usr/local/kafka/bin/zookeeper-server-stop.sh /usr/local/kafka/config/zookeeper.properties &amp;</p>
+<p>        sleep 1</p>
+<p>        echo -e '\033[32mkafka停止成功\033[0m';;</p>
+<p>    *)</p>
+<p>        echo -e '\033[31mstart|stop1\033[0m'</p>
+<p>    esac</p>
+<p>else</p>
+<p>    echo -e '\033[31mstart|stop\033[0m'</p>
+<p>fi</p>
+<p>[root@elk212 ~]# chmod +x /usr/local/kafka/kafka.sh</p>
+<p>[root@elk212 ~]# /usr/local/kafka/kafka.sh start</p>
+<p>kafka启动中....</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>kafka启动成功....</p>
+<p>[root@elk212 ~]# /usr/local/kafka/kafka.sh stop</p>
+<p>kafka停止中....</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>kafka停止成功</p>
+</blockquote><p><b>****测试一下kafka****</b></p><blockquote>
+<p>[root@elk212 ~]# cd /usr/local/kafka/</p>
+<p>#创建topic</p>
+<p>[root@elk212 kafka]# bin/kafka-topics.sh --create --zookeeper 192.168.68.212:2181 --replication-factor 1 --partitions 1 --topic test1</p>
+<p>Created topic test1</p>
+<p>#查看创建的topic</p>
+<p>[root@elk212 kafka]# ./bin/kafka-topics.sh --list --zookeeper 192.168.68.212:2181</p>
+<p>test</p>
+<p>#模拟客户端发送消息</p>
+<p>[root@elk212 kafka]# ./bin/kafka-console-producer.sh --broker-list 192.168.68.212:9092 --topic test</p>
+<p>&gt;hello jluocc</p>
+<p>&gt;bye</p>
+<p>#模拟客户端接收信息（如果能正常接收到信息说明kafka部署正常）</p>
+<p>[root@elk212 kafka]# ./bin/kafka-console-consumer.sh --bootstrap-server 192.168.68.212:9092 --topic test --from-beginning</p>
+<p>hello jluocc</p>
+<p>bye</p>
+<p><br></p>
+</blockquote><p><b>3）安装Elasticsearch[elk212,elk213,elk214]</b></p><blockquote>
+<p>[root@elk212 iso]# tar -xvf elasticsearch-7.2.0-linux-x86_64.tar.gz</p>
+<p>[root@elk212 iso]# mv elasticsearch-7.2.0 /usr/local/es</p>
+<p>[root@elk212 iso]# cd /usr/local/es/config</p>
+<p>[root@elk212 config]# vim elasticsearch.yml</p>
+<p>[root@elk212 config]#  cat elasticsearch.yml | grep -Ev "^$|^#"</p>
+<p>cluster.name: elasticsearch</p>
+<p>node.name: node-1   #elk213：node-2  elk214:node-3</p>
+<p>path.data: /data</p>
+<p>path.logs: /data/logs</p>
+<p>network.host: 192.168.68.212</p>
+<p>http.port: 9200</p>
+<p>discovery.zen.ping.unicast.hosts: ["192.168.68.212","192.168.68.213","192.168.68.214"]</p>
+<p>discovery.zen.minimum_master_nodes: 3</p>
+<p>node.master: true</p>
+<p>node.data: true</p>
+<p>transport.tcp.compress: true</p>
+<p>[root@elk212 config]# useradd  log</p>
+<p>[root@elk212 config]# mkdir /data/logs -p</p>
+<p>[root@elk212 config]# chown -R log:log /data/</p>
+<p>[root@elk212 config]# chown -R log:log /usr/local/es/</p>
+<p>[root@elk212 config]# su - log -c "/usr/local/es/bin/elasticsearch"</p>
+<p>[root@elk212 ~]# curl 192.168.68.212:9200</p>
+<p>{</p>
+<p>  "name" : "node-1",</p>
+<p>  "cluster_name" : "elasticsearch",</p>
+<p>  "cluster_uuid" : "yxC9x1hQQ9mja35PWSqG0A",</p>
+<p>  "version" : {</p>
+<p>    "number" : "7.2.0",</p>
+<p>    "build_flavor" : "default",</p>
+<p>    "build_type" : "tar",</p>
+<p>    "build_hash" : "508c38a",</p>
+<p>    "build_date" : "2019-06-20T15:54:18.811730Z",</p>
+<p>    "build_snapshot" : false,</p>
+<p>    "lucene_version" : "8.0.0",</p>
+<p>    "minimum_wire_compatibility_version" : "6.8.0",</p>
+<p>    "minimum_index_compatibility_version" : "6.0.0-beta1"</p>
+<p>  },</p>
+<p>  "tagline" : "You Know, for Search"</p>
+<p>}</p>
+</blockquote><p><b>****编写简单启动脚本****</b></p><blockquote>
+<p>[root@elk212 es]# vim manageES.sh</p>
+<p>#!/bin/bash</p>
+<p>#获取es的pid号</p>
+<p>id=`ps -elf | grep -i elasticsearch | grep 'Xmx' | awk '{print $4}'`</p>
+<p>if [ $# -eq 1 ];then</p>
+<p>    case $1 in</p>
+<p>    start)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>	     echo -e '\033[32mes启动中....\033[0m'</p>
+<p>	    nohup su - log -c "/usr/local/es/bin/elasticsearch" &amp;  &gt; /dev/null</p>
+<p>	    sleep 5</p>
+<p>	     echo -e '\033[32mes已经启动成功\033[0m'</p>
+<p>	else</p>
+<p>	    echo -e "\033[31mes已经启动!,pid:${id}\033[0m"</p>
+<p>	fi</p>
+<p>	;;</p>
+<p>    restart)</p>
+<p>       if [ -z "$id" ];then</p>
+<p>           echo -e '\033[32mes重启中....\033[0m'</p>
+<p>           nohup su - log -c "/usr/local/es/bin/elasticsearch" &amp;  &gt; /dev/null</p>
+<p>	   sleep 5</p>
+<p>	   echo -e '\033[32mes已经重启成功\033[0m'</p>
+<p>       else</p>
+<p>           echo -e '\033[32mes重启中....\033[0m'</p>
+<p>           kill -9 $id &amp;&gt; /dev/null</p>
+<p>	   nohup su - log -c "/usr/local/es/bin/elasticsearch" &amp;  &gt; /dev/null</p>
+<p>	   sleep 5</p>
+<p>	   echo -e '\033[32mes已经重启成功\033[0m'</p>
+<p>       fi</p>
+<p>       ;;</p>
+<p>   status)</p>
+<p>       if [ -z "$id" ];then</p>
+<p>           echo -e '\033[32mes没有启动!\033[0m'</p>
+<p>       else</p>
+<p>           echo -e "\033[32mes正在运行,pid:${id}\033[0m"</p>
+<p>       fi</p>
+<p>       ;;</p>
+<p>    stop)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>	    echo -e '\033[31mes没有启动!\033[0m'</p>
+<p>        else</p>
+<p>	    echo -e '\033[32mes停止中....\033[0m'</p>
+<p>	    kill -9 $id  &amp;&gt; /dev/null</p>
+<p>	    sleep 2</p>
+<p>	    echo -e '\033[32mes已经停止成功\033[0m'</p>
+<p>	fi</p>
+<p>	;;</p>
+<p>    *)</p>
+<p>        echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>    esac</p>
+<p>else</p>
+<p>    echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>fi</p>
+<p>[root@elk212 es]# chmod +x manageES.sh</p>
+<p>[root@elk212 es]# ./manageES.sh  -h</p>
+<p>start|restart|status|stop</p>
+<p>[root@elk212 es]# ./manageES.sh start</p>
+<p>es启动中....</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>es已经启动成功</p>
+<p>[root@elk212 es]# ./manageES.sh status</p>
+<p>es正在运行,pid:5596</p>
+<p>[root@elk212 es]# ss -tunl | grep -E '9200|9300'</p>
+<p>tcp    LISTEN     0      128       ::ffff:192.168.68.212:9200                 :::*                 </p>
+<p>tcp    LISTEN     0      128       ::ffff:192.168.68.212:9300                 :::*</p>
+</blockquote><p><b>4）安装Kibana</b></p><blockquote>
+<p>[root@elk212 iso]# tar -xvf kibana-7.2.0-linux-x86_64.tar.gz</p>
+<p>[root@elk212 iso]# mv kibana-7.2.0-linux-x86_64 /usr/local/kibana</p>
+<p>[root@elk212 iso]# chown -R log:log /usr/local/kibana/</p>
+<p>[root@elk212 iso]# cd /usr/local/kibana/</p>
+<p>[root@elk212 kibana]# vim config/kibana.yml</p>
+<p>[root@elk212 kibana]# cat config/kibana.yml | grep -Ev "^$|^#"</p>
+<p>server.port: 5601</p>
+<p>server.host: "0.0.0.0"</p>
+<p>elasticsearch.hosts: ["http://192.168.68.212:9200"]</p>
+<p>kibana.index: ".kibana"</p>
+<p>pid.file: /usr/local/kibana/kibana.pid</p>
+<p>[root@elk212 kibana]# su - log -c "/usr/local/kibana/bin/kibana"</p>
+<p>[root@elk212 iso]# ss -tunl | grep 5601</p>
+<p>tcp    LISTEN     0      128    192.168.68.212:5601                  *:*</p>
+</blockquote><p><b>****编写启动脚本****</b></p><blockquote>
+<p>[root@elk212 kibana]# vim kibana.sh</p>
+<p>#!/bin/bash</p>
+<p>#获取kibanapid</p>
+<p>id=`ps -elf | grep -i kibana | grep 'max-http-header-size' | awk '{print $4}'`</p>
+<p>if [ $# -eq 1 ];then</p>
+<p>    case $1 in</p>
+<p>    start)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>	     echo -e '\033[32mkibana启动中....\033[0m'</p>
+<p>	    nohup su - log -c "/usr/local/kibana/bin/kibana" &amp;  &gt; /dev/null</p>
+<p>	    sleep 5</p>
+<p>	     echo -e '\033[32mkibana已经启动成功\033[0m'</p>
+<p>	else</p>
+<p>	    echo -e "\033[31mkibana已经启动!,pid:${id}\033[0m"</p>
+<p>	fi</p>
+<p>	;;</p>
+<p>    restart)</p>
+<p>       if [ -z "$id" ];then</p>
+<p>           echo -e '\033[32mkibana重启中....\033[0m'</p>
+<p>           nohup su - log -c "/usr/local/kibana/bin/kibana" &amp;  &gt; /dev/null</p>
+<p>	   sleep 5</p>
+<p>	   echo -e '\033[32mkibana已经重启成功\033[0m'</p>
+<p>       else</p>
+<p>           echo -e '\033[32mkibana重启中....\033[0m'</p>
+<p>           kill -9 $id &amp;&gt; /dev/null</p>
+<p>	   nohup su - log -c "/usr/local/kibana/bin/kibana" &amp;  &gt; /dev/null</p>
+<p>	   sleep 5</p>
+<p>	   echo -e '\033[32mkibana已经重启成功\033[0m'</p>
+<p>       fi</p>
+<p>       ;;</p>
+<p>   status)</p>
+<p>       if [ -z "$id" ];then</p>
+<p>           echo -e '\033[32mkibana没有启动!\033[0m'</p>
+<p>       else</p>
+<p>           echo -e "\033[32mkibana正在运行,pid:${id}\033[0m"</p>
+<p>       fi</p>
+<p>       ;;</p>
+<p>    stop)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>	    echo -e '\033[31mkibana没有启动!\033[0m'</p>
+<p>        else</p>
+<p>	    echo -e '\033[32mkibana停止中....\033[0m'</p>
+<p>	    kill -9 $id  &amp;&gt; /dev/null</p>
+<p>	    sleep 2</p>
+<p>	    echo -e '\033[32mkibana已经停止成功\033[0m'</p>
+<p>	fi</p>
+<p>	;;</p>
+<p>    *)</p>
+<p>        echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>    esac</p>
+<p>else</p>
+<p>    echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>fi</p>
+<p>[root@elk212 kibana]# chmod +x kibana.sh</p>
+<p>[root@elk212 kibana]# ./kibana.sh status</p>
+<p>kibana没有启动!</p>
+<p>[root@elk212 kibana]# ./kibana.sh start</p>
+<p>kibana启动中....</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>kibana已经启动成功</p>
+<p>[root@elk212 kibana]# ./kibana.sh status</p>
+<p>kibana正在运行,pid:6714</p>
+</blockquote><p><b>5）安装Logstash[elk212,elk213,elk214]</b></p><blockquote>
+<p>[root@elk212 iso]# tar -xvf logstash-7.2.0.tar.gz</p>
+<p>[root@elk212 iso]# mv logstash-7.2.0 /usr/local/logstash</p>
+<p>[root@elk212 logstash]# chown -R log:log /usr/local/logstash/</p>
+<p>[root@elk212 iso]# cd /usr/local/logstash/</p>
+<p>[root@elk212 logstash]# cp config/logstash-sample.conf config/logstash.conf</p>
+<p>[root@elk212 logstash]# vim config/logstash.conf</p>
+<p>input {</p>
+<p>  kafka {</p>
+<p>    bootstrap_servers =&gt; ["192.168.68.212:9092","192.168.68.213:9092","192.168.68.214:9092"]</p>
+<p>    topics =&gt; ["credit"]</p>
+<p>    group_id =&gt; "test-consumer-group"</p>
+<p>    codec =&gt; "json"</p>
+<p>    consumer_threads =&gt; 1</p>
+<p>    decorate_events =&gt; true</p>
+<p>  }</p>
+<p>}</p>
+<p>output {</p>
+<p>  elasticsearch {</p>
+<p>    hosts =&gt; ["192.168.68.212:9200","192.168.68.213:9200","192.168.68.214:9200"]</p>
+<p>    index =&gt; "logs-%{+YYYY.MM.dd}"</p>
+<p>    workers =&gt; 1</p>
+<p>  }</p>
+<p>}</p>
+<p>这里需要注意的就四个地方
+ bootstrap_servers 也就是kafka集群的地址，在filebeat端要求单个地址加引号，这里是集群地址放一起加引号。</p>
+<p>group_id 这里必须保证唯一，是你这个logstash集群消费kafka集群的身份标识。</p>
+<p>
+topics  filebeat和logstash使用的topic一致。</p>
+<p>codec =&gt; json  由于beat传输数据给kafka集群的时候，会附加很多tag，默认情况下，logstash就会将这串tag也认为是message的一部分。这样不利于后期的数据处理。所有需要添加codec处理。得到原本的message数据。</p>
+<p><b>#启动logstash,如果没有error , 就启动完成了</b></p>
+<p>[root@elk212 ~]# /usr/local/logstash/bin/logstash -f /usr/local/logstash/config/logstash.conf</p>
+<p>[root@elk212 ~]# ss -tunl | grep :9600</p>
+<p>tcp    LISTEN     0      50     ::ffff:127.0.0.1:9600                 :::*</p>
+</blockquote><p><b>****编写管理logstash脚本****</b></p><blockquote>
+<p>[root@elk212 ~]# cd /usr/local/logstash/</p>
+<p>[root@elk212 logstash]# vim logstash.sh</p>
+<p>#!/bin/bash</p>
+<p>#获取logstash进程pid号</p>
+<p>id=`ps -elf | grep -i logstash | grep 'Xms' | awk '{print $4}'`</p>
+<p>if [ $# -eq 1 ];then</p>
+<p>    case $1 in</p>
+<p>    start)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>    echo -e '\033[32mlogstash启动中....\033[0m'</p>
+<p>    nohup su - log -c " /usr/local/logstash/bin/logstash -f /usr/local/logstash/config/logstash.conf" &amp;  &gt; /dev/null</p>
+<p>    sleep 5</p>
+<p>    echo -e '\033[32mlogstash已经启动成功\033[0m'</p>
+<p>else</p>
+<p>    echo -e "\033[31mlogstash已经启动!,pid:${id}\033[0m"</p>
+<p>fi</p>
+<p>;;</p>
+<p>    restart)</p>
+<p>      if [ -z "$id" ];then</p>
+<p>          echo -e '\033[32mlogstash重启中....\033[0m'</p>
+<p>          nohup su - log -c " /usr/local/logstash/bin/logstash -f /usr/local/logstash/config/logstash.conf" &amp;  &gt; /dev/null</p>
+<p>  sleep 5</p>
+<p>  echo -e '\033[32mlogstash已经重启成功\033[0m'</p>
+<p>      else</p>
+<p>          echo -e '\033[32mlogstash重启中....\033[0m'</p>
+<p>          kill -9 $id &amp;&gt; /dev/null</p>
+<p>  nohup su - log -c " /usr/local/logstash/bin/logstash -f /usr/local/logstash/config/logstash.conf" &amp;  &gt; /dev/null</p>
+<p>  sleep 5</p>
+<p>  echo -e '\033[32mlogstash已经重启成功\033[0m'</p>
+<p>      fi</p>
+<p>      ;;</p>
+<p>  status)</p>
+<p>      if [ -z "$id" ];then</p>
+<p>          echo -e '\033[32mlogstash没有启动!\033[0m'</p>
+<p>      else</p>
+<p>          echo -e "\033[32mlogstash正在运行,pid:${id}\033[0m"</p>
+<p>      fi</p>
+<p>      ;;</p>
+<p>    stop)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>    echo -e '\033[31mlogstash没有启动!\033[0m'</p>
+<p>        else</p>
+<p>    echo -e '\033[32mlogstash停止中....\033[0m'</p>
+<p>    kill -9 $id  &amp;&gt; /dev/null</p>
+<p>    sleep 2</p>
+<p>    echo -e '\033[32mlogstash已经停止成功\033[0m'</p>
+<p>fi</p>
+<p>;;</p>
+<p>    *)</p>
+<p>        echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>    esac</p>
+<p>else</p>
+<p>    echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>fi</p>
+<p>[root@elk212 logstash]# chmod +x logstash.sh</p>
+<p>[root@elk212 logstash]# ./logstash.sh</p>
+<p>start|restart|status|stop</p>
+<p>[root@elk212 logstash]# ./logstash.sh stop</p>
+<p>logstash停止中....</p>
+<p>logstash已经停止成功</p>
+<p>[root@elk212 logstash]# ./logstash.sh status</p>
+<p>logstash没有启动!</p>
+<p>[root@elk212 logstash]# ./logstash.sh start</p>
+<p>logstash启动中....</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>logstash已经启动成功</p>
+<p>[root@elk212 logstash]# ./logstash.sh status</p>
+<p>logstash正在运行,pid:7586</p>
+</blockquote><p><b>2、客户端</b></p><blockquote>
+<p>[root@web50 efk]# tar -xvf filebeat-7.2.0-linux-x86_64.tar.gz</p>
+<p>[root@web50 efk]# mv filebeat-7.2.0-linux-x86_64 /usr/local/filebeat</p>
+<p>[root@web50 filebeat]# useradd log</p>
+<p>[root@web50 filebeat]# chown -R log:log /usr/local/filebeat/</p>
+<p>[root@web50 efk]# cd /usr/local/filebeat/</p>
+<p>[root@web50 filebeat]# vim filebeat.yml</p>
+<p>[root@web50 filebeat]# grep -vE '^$|#' filebeat.yml</p>
+<p>filebeat.inputs:</p>
+<p>- type: log</p>
+<p>  enabled: true</p>
+<p>  paths:</p>
+<p>    - /var/log/*.log</p>
+<p>  multiline.pattern: ^\d+</p>
+<p>  multiline.negate: true</p>
+<p>  multiline.match: after</p>
+<p>filebeat.config.modules:</p>
+<p>  path: ${path.config}/modules.d/*.yml</p>
+<p>  reload.enabled: false</p>
+<p>setup.template.settings:</p>
+<p>  index.number_of_shards: 1</p>
+<p>setup.kibana:</p>
+<p>output.kafka:</p>
+<p>  hosts: ['192.168.68.212:9092','192.168.68.213:9092' ,'192.168.68.214:9092']</p>
+<p>  topic: 'credit'</p>
+<p>processors:</p>
+<p>  - add_host_metadata: ~</p>
+<p>  - add_cloud_metadata: ~</p>
+<p>[root@web50 filebeat]# ./filebeat modules enable nginx</p>
+<p>[root@web50 filebeat]# vim modules.d/nginx.yml</p>
+<p>[root@web50 filebeat]# cat modules.d/nginx.yml | grep -Ev '^$|#'</p>
+<p>- module: nginx</p>
+<p>  access:</p>
+<p>    enabled: true</p>
+<p>    var.paths: ["/usr/local/nginx/logs/access.log"]</p>
+<p>  error:</p>
+<p>    enabled: true</p>
+<p>    var.paths: ["/usr/local/nginx/logs/error.log"]</p>
+<p>#启动</p>
+<p>[root@web50 filebeat]# /usr/local/filebeat/filebeat -e -c /usr/local/filebeat/filebeat.yml</p>
+</blockquote><p><b>****编写管理脚本****</b></p><blockquote>
+<p>[root@web50 ~]# cd /usr/local/filebeat/</p>
+<p>[root@web50 filebeat]# vim mbeat.sh</p>
+<p>#/bin/bash</p>
+<p>#获取filebeat进程pid号</p>
+<p>id=`ps -elf | grep -i filebeat | grep -v grep | awk '{print $4}' | tail -1`</p>
+<p>if [ $# -eq 1 ];then</p>
+<p>    case $1 in</p>
+<p>    start)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>    echo -e '\033[32mlogstash启动中....\033[0m'</p>
+<p>    nohup su - log -c "/usr/local/filebeat/filebeat -e -c /usr/local/filebeat/filebeat.yml" &amp;  &gt; /dev/null</p>
+<p>    sleep 5</p>
+<p>    echo -e '\033[32mfilebeat已经启动成功\033[0m'</p>
+<p>else</p>
+<p>    echo -e "\033[31mfilebeat已经启动!,pid:${id}\033[0m"</p>
+<p>fi</p>
+<p>;;</p>
+<p>    restart)</p>
+<p>      if [ -z "$id" ];then</p>
+<p>          echo -e '\033[32mlogstash重启中....\033[0m'</p>
+<p>          nohup su - log -c " /usr/local/filebeat/filebeat -e -c /usr/local/filebeat/filebeat.yml" &amp;  &gt; /dev/null</p>
+<p>  sleep 5</p>
+<p>  echo -e '\033[32mfilebeat已经重启成功\033[0m'</p>
+<p>      else</p>
+<p>          echo -e '\033[32mfilebeat重启中....\033[0m'</p>
+<p>          kill -9 $id &amp;&gt; /dev/null</p>
+<p>  nohup su - log -c " /usr/local/filebeat/filebeat -e -c /usr/local/filebeat/filebeat.yml" &amp;  &gt; /dev/null</p>
+<p>  sleep 5</p>
+<p>  echo -e '\033[32mfilebeat已经重启成功\033[0m'</p>
+<p>      fi</p>
+<p>      ;;</p>
+<p>  status)</p>
+<p>      if [ -z "$id" ];then</p>
+<p>          echo -e '\033[32mfilebeat没有启动!\033[0m'</p>
+<p>      else</p>
+<p>          echo -e "\033[32mfilebeat正在运行,pid:${id}\033[0m"</p>
+<p>      fi</p>
+<p>      ;;</p>
+<p>    stop)</p>
+<p>        if [ -z "$id" ];then</p>
+<p>    echo -e '\033[31mfilebeat没有启动!\033[0m'</p>
+<p>        else</p>
+<p>    echo -e '\033[32mfilebeat停止中....\033[0m'</p>
+<p>    kill -9 $id  &amp;&gt; /dev/null</p>
+<p>    sleep 2</p>
+<p>    echo -e '\033[32mfilebeat已经停止成功\033[0m'</p>
+<p>fi</p>
+<p>;;</p>
+<p>    *)</p>
+<p>        echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>    esac</p>
+<p>else</p>
+<p>    echo -e '\033[31mstart|restart|status|stop\033[0m'</p>
+<p>fi</p>
+<p>[root@web50 filebeat]# chmod +x mbeat.sh</p>
+<p>[root@web50 filebeat]# ./mbeat.sh start</p>
+<p>logstash启动中....</p>
+<p>nohup: 把输出追加到"nohup.out"</p>
+<p>filebeat已经启动成功</p>
+<p>[root@web50 filebeat]# ./mbeat.sh status</p>
+<p>filebeat正在运行,pid:3216</p>
+</blockquote><p><b>3、kibana配置</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-d8216d8ecbb3944c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-eac4f62f9ae72078.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-4641a1576a6ccbdf.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-eb4a0b54c508ac9e.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-9ddea81d8a842c6c.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3e27a03bab72b788.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-1e095c717656667f.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><br></p><h1>四总结&amp;提示</h1><p>本次实验主要是简单分享下elk+filebeat+kafka构建日志分析平台，由于自己电脑配置问题，只能部署在三台电脑上，生产环境中，应该把es集群分离出来单独部署，具体情况具体分析，kibana可以多部署几台，用nginx调度，组建高可以kibana，配置访问权限，增加安全性等等。</p><p><br></p><p><b>常见错误01：</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-ab0f86baa26998be.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>解决办法：</b>调大zookeeper连接时间<br>zookeeper.connection.timeout.ms=60000</p><p><br></p><p><br></p><p><b>看官福利：</b></p><hr><div class="image-package  " data-index="15">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-eb5c6c0c77f244c8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" style="min-height:200px;min-width:200px;" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

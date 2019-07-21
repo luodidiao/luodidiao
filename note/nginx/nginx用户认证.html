@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nginx用户认证</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">nginx用户认证</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-3cb790e286b2019f.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>1，修改配置文件</b></p><p>[root@VM_0_2_centos ~]# vim /usr/local/nginx/conf/nginx.conf</p><p>.. ..</p><p>server {</p><p>        listen       80;</p><p>        server_name  localhost;</p><p>auth_basic "Input Password:";                        //认证提示符,不能是汉字</p><p>auth_basic_user_file "/usr/local/nginx/password";        //认证密码文件</p><p>        location / {</p><p>            root   html;</p><p>            index  index.html index.htm;</p><p>        }</p><p>  }</p><p>........</p><p><b>2，生成密码文件，创建用户及密码</b></p><p>使用htpasswd命令创建账户文件，需要确保系统中已经安装了httpd-tools。</p><p>[root@VM_0_2_centos ~]# yum -y install httpd-tools</p><p>[root@VM_0_2_centos ~]# htpasswd -c /usr/local/nginx/password luojun  //创建密码文件</p><p>New password:</p><p>Re-type new password:</p><p>Adding password for user luojun</p><p>[root@VM_0_2_centos ~]# cat /usr/local/nginx/password</p><p>luojun:$apr1$2O8OvCS7$EbTpjN9q4APyTCdM4.WIk1</p><p>提示：追加用户，不使用-c选项</p><p>3，重启nginx服务</p><p>[root@VM_0_2_centos ~]# /usr/local/nginx/sbin/nginx -s reload</p><p>提示：请先确保nginx是启动状态，否则运行该命令会报错,报错信息如下</p><p>[error] open() "/usr/local/nginx/logs/nginx.pid" failed (2: No such file or directory</p><p>4，验证</p><p>浏览器上输入：http://ip  </p><p>例如：http://192.168.68.50</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-b741cedbb4997eff.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p>输入用户名和密码</p><p><br></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-b7a5b2edaaea7ea2.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>总结：</b></p><p>用户认证可用于有敏感信息的页面，如查看nginx的状态等</p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package  " data-index="4">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-401735a07d83e0ab.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/200/format/webp" style="min-height:200px;min-width:200px;" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

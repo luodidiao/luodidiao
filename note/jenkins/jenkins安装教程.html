@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jenkins安装教程</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">jenkins安装教程</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-18fb6d7dc7f5fb95.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h1>工具&amp;原料</h1><hr><p><a href="https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html" target="_blank">jdk</a></p><p><a href="https://tomcat.apache.org/download-80.cgi" target="_blank">tomcat</a></p><p><a href="https://jenkins.io/download/" target="_blank">jenkins</a></p><p><a href="http://isoredirect.centos.org/centos/7/isos/x86_64/CentOS-7-x86_64-DVD-1810.iso" target="_blank">centos</a></p><p><b>详细信息如下：</b></p><p>[root@jenkins100 iso]# cat /etc/redhat-release</p><p>CentOS Linux release 7.4.1708 (Core)</p><p>[root@jenkins100 iso]# ls</p><p>apache-tomcat-8.5.42.tar.gz  jdk-8u211-linux-x64.tar.gz  jenkins.war</p><p><br></p><h1>方法&amp;步骤</h1><hr><h4>1、jdk安装</h4><p>[root@jenkins100 iso]# tar -xvf jdk-8u211-linux-x64.tar.gz -C /usr/local/</p><p>[root@jenkins100 iso]# export 'PATH=/usr/local/jdk1.8.0_211/bin/:$PATH' &gt;&gt; /etc/profile</p><p>[root@jenkins100 iso]# source /etc/profile</p><p>[root@jenkins100 iso]# java -version</p><p>java version "1.8.0_211"</p><p>Java(TM) SE Runtime Environment (build 1.8.0_211-b12)</p><p>Java HotSpot(TM) 64-Bit Server VM (build 25.211-b12, mixed mode)</p><p><b>2、tomcat安装</b></p><p>[root@jenkins100 iso]# tar -xvf apache-tomcat-8.5.42.tar.gz</p><p>[root@jenkins100 iso]# mv apache-tomcat-8.5.42 /usr/local/tomcat</p><p>[root@jenkins100 iso]# /usr/local/tomcat/bin/startup.sh</p><p>[root@jenkins100 iso]# ss -tunlp| grep :8080</p><p>tcp    LISTEN     0      100      :::8080                 :::*                   users:(("java",pid=11783,fd=49))</p><p><b>3、jenkins安装</b></p><p>[root@jenkins100 iso]# cp jenkins.war /usr/local/tomcat/webapps/</p><p>在浏览器输入http://自己ip:8080/jenkins，具体操作如下图</p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-8cc5c2b04d3e7fd7.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-a92229923fa1fbc4.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-d2c81401ca46ae2a.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-f877d3c1c24cb677.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-53dce41ad5b38fc2.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-8e848712c1e1b424.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-8689bb3dbe48e658.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><b>4、配置tomcat</b></p><p>[root@jenkins100 ~]# vim /usr/local/tomcat/conf/server.xml</p><p>.......</p><p>      &lt;Host name="localhost"  appBase="webapps"</p><p>            unpackWARs="true" autoDeploy="true"&gt;</p><p>      &lt;Context path="" docBase="jenkins" reloadable="flase" /&gt;</p><p>........</p><p>[root@jenkins100 ~]# /usr/local/tomcat/bin/startup.sh</p><p><b>现在可直接访问http://ip:8080</b></p><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-a57af8917c4d390e.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-2d39083e37834f42.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-1351a0ba55184483.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-e3a0d30547ead077.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p><br></p><h1>总结</h1><hr><p>jenkins安装比较简单，安装方法有很多种，本次只是分享其中一种安装方式；安装步骤到第三步就完成了，第四步可做可不做，我建议配置一下访问比较方便。</p><p><br></p><h1>温馨提示</h1><hr><p>jenkins的安装也可直接运行：java jar jenkins.war，然后访问http://ip:8080</p><p><br></p><h1>
+<b>看官福利：</b><br>
+</h1><hr><div class="image-package  " data-index="1">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-401735a07d83e0ab.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/200/format/webp" style="min-height:200px;min-width:200px;" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><h1>
+<b>结束语：</b><br>
+</h1><hr><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

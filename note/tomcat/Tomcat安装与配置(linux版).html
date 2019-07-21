@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomcat安装与配置(linux版)</title>
+    <style type="text/css" media="all">
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", sans-serif;
+        font-size: 14px;
+        line-height: 20px;
+        color: #777;
+        background-color: white;
+      }
+      .container {
+        width: 700px;
+        margin-right: auto;
+        margin-left: auto;
+      }
+
+      .post {
+        font-family: Georgia, "Times New Roman", Times, "SimSun", serif;
+        position: relative;
+        padding: 70px;
+        bottom: 0;
+        overflow-y: auto;
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 25px;
+        color: #515151;
+      }
+
+      .post h1{
+        font-size: 50px;
+        font-weight: 500;
+        line-height: 60px;
+        margin-bottom: 40px;
+        color: inherit;
+      }
+
+      .post p {
+        margin: 0 0 35px 0;
+      }
+
+      .post img {
+        border: 1px solid #D9D9D9;
+      }
+
+      .post a {
+        color: #28A1C5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="post">
+        <h1 class="title">Tomcat安装与配置(linux版)</h1>
+        <div class="show-content">
+          <div class="image-package">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-db98152efd7b35a8.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><p>1，安装jdk</p><blockquote>
+<p>[root@web1 ~]# yum -y install  java-1.8.0-openjdk                //安装JDK</p>
+<p>[root@web1 ~]# yum -y install java-1.8.0-openjdk-headless        //安装JDK</p>
+<p>[root@web1 ~]# java -version                                    //查看JAVA版</p>
+</blockquote><p><b>2，安装tomcat</b></p><blockquote>
+<p>[root@web1 ~]# wget  http://mirrors.tuna.tsinghua.edu.cn/apache/tomcat/tomcat-8/v8.5.42/bin/apache-tomcat-8.5.42.tar.gz</p>
+<p>[root@web1 ~]# tar -xf  apache-tomcat-8.5.42.tar.gz</p>
+<p>[root@web1 ~]# mv apache-tomcat-8.5.42  /usr/local/tomcat</p>
+<p>[root@web1 ~]# ls /usr/local/tomcat</p>
+<p>bin/                                            //主程序目录</p>
+<p>lib/                                            //库文件目录</p>
+<p>logs/                                          //日志目录  </p>
+<p>temp/                                         //临时目录</p>
+<p>work/                                        //自动编译目录jsp代码转换servlet</p>
+<p>conf/                                        //配置文件目录</p>
+<p>webapps/                                        //页面目录</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/startup.sh</p>
+<p>[root@web1 ~]# firewall-cmd --set-default-zone=trusted</p>
+<p>[root@web1 ~]# setenforce 0</p>
+<p>[root@web1 ~]# netstat -nutlp |grep java        //查看java监听的端口</p>
+<p>tcp        0      0 :::8080              :::*                LISTEN      2778/java           </p>
+<p>tcp        0      0 ::ffff:127.0.0.1:8005     :::*         LISTEN       2778/java  </p>
+<p>提示：如果检查端口时，8005端口启动非常慢，可用使用下面的命令用urandom替换random（非必须操作）。</p>
+<p>[root@web1 ~]# mv /dev/random  /dev/random.bak</p>
+<p>[root@web1 ~]# ln -s /dev/urandom  /dev/random</p>
+<p>##客户端浏览测试页面</p>
+<p>[root@client ~]# curl <a href="http://192.168.2.100:8080/" target="_blank">http://192.168.2.100:8080</a></p>
+<p>或者浏览器输入地址<a href="http://192.168.2.100:8080/" target="_blank">http://192.168.2.100:8080</a>即可验证</p>
+</blockquote><p><b>3，配置虚拟主机</b></p><p><b>1）修改server.xml配置文件，创建虚拟主机</b></p><blockquote>
+<p>[root@web1 ~]# vim /usr/local/tomcat/conf/server.xml</p>
+<p>… …</p>
+<p>&lt;Host name="www.a.com" appBase="a" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>&lt;/Host&gt;</p>
+<p>&lt;Host name="www.b.com" appBase="b" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>&lt;/Host&gt;</p>
+</blockquote><p><b>2）创建虚拟主机对应的页面根路径</b></p><blockquote>
+<p>[root@web1 ~]# mkdir -p  /usr/local/tomcat/{a,b}/ROOT</p>
+<p>[root@web1 ~]# echo "AAA"   &gt; /usr/local/tomcat/a/ROOT/index.html</p>
+<p>[root@web1 ~]# echo "BBB" &gt; /usr/local/tomcat/b/ROOT/index.html</p>
+</blockquote><p><b>3）重启Tomcat服务器</b></p><blockquote>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/shutdown.sh</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/startup.sh</p>
+</blockquote><p><b>4）客户端设置host文件，并浏览测试页面进行测试(proxy充当客户端角色)</b></p><p>注意：ssh远程连接时使用使用-X参数才可以！！！</p><blockquote>
+<p>[root@proxy ~]# vim /etc/hosts</p>
+<p>… …</p>
+<p>192.168.2.100      www.a.com  www.b.com</p>
+<p>[root@proxy ~]# curl http://www.a.com:8080/        //注意访问的端口为8080</p>
+<p>AAA</p>
+<p>[root@proxy ~]# curl <a href="http://www.b.com:8080/" target="_blank">http://www.b.com:8080/</a></p>
+<p>BBB</p>
+</blockquote><p><b>4，修改www.b.com网站的首页目录为base</b></p><p><b>1）使用docBase参数可以修改默认网站首页路径</b></p><blockquote>
+<p>[root@web1 ~]# vim /usr/local/tomcat/conf/server.xml</p>
+<p>… …</p>
+<p>&lt;Host name="www.a.com" appBase="a" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>&lt;/Host&gt;</p>
+<p>&lt;Host name="www.b.com" appBase="b" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>    #决定网站的根目录，默认ROOT</p>
+<p>&lt;/Host&gt;</p>
+<p>… …</p>
+<p>[root@web1 ~]# mkdir  /usr/local/tomcat/b/base</p>
+<p>[root@web1 ~]# echo "BASE" &gt; /usr/local/tomcat/b/base/index.html</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/shutdown.sh</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/startup.sh</p>
+<p>提示：</p>
+<p>reloadable:如果这个属性设为true，tomcat服务器在运行状态下会监视在WEB-INF/classes和WEB-INF/lib目录下class文件的改动，如果监测到有class文件被更新的，服务器会自动重新加载Web应用。在开发阶段将reloadable属性设为true，有助于调试servlet和其它的class文件，但这样用加重服务器运行负荷，建议在Web应用的发存阶段将reloadable设为false。</p>
+</blockquote><p><b>2）测试查看页面是否正确(proxy充当客户端角色)</b></p><blockquote>
+<p>[root@proxy ~]# firefox http://www.b.com:8080/        //结果为base目录下的页面内容</p>
+<p>BASE</p>
+</blockquote><p><b>5，tomcat跳转</b></p><p><b>1）当用户访问http://www.a.com/test打开/var/www/html目录下的页面</b></p><blockquote>
+<p>[root@web1 ~]# vim /usr/local/tomcat/conf/server.xml</p>
+<p>… …</p>
+<p>&lt;Host name="www.a.com" appBase="a" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>&lt;Context path="/test" docBase="/var/www/html/" /&gt;</p>
+<p>&lt;/Host&gt;</p>
+<p>&lt;Host name="www.b.com" appBase="b" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>&lt;Context path="" docBase="base" /&gt;</p>
+<p>&lt;/Host&gt;</p>
+<p>… …</p>
+<p>[root@web1 ~]# echo "Test" &gt; /var/www/html/index.html</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/shutdown.sh</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/startup.sh</p>
+</blockquote><p><b>2）测试查看页面是否正确(proxy充当客户端角色)</b></p><blockquote>
+<p>[root@proxy ~]# curl http://www.a.com:8080/test    </p>
+<p>Test</p>
+<p>//返回/var/www/html/index.html的内容</p>
+<p>//注意，访问的端口为8080</p>
+</blockquote><p><b>6，配置Tomcat支持SSL加密网站</b></p><blockquote>
+<p>[root@web1 jluo]# keytool --help</p>
+<p>-certreq生成证书请求</p>
+<p>-changealias更改条目的别名</p>
+<p>-delete删除条目</p>
+<p>-exportcert导出证书</p>
+<p>-genkeypair生成密钥对</p>
+<p>-genseckey生成密钥</p>
+<p>-gencert根据证书请求生成证书</p>
+<p>-importcert导入证书或证书链</p>
+<p>-importpass导入口令</p>
+<p>-importkeystore从其他密钥库导入一个或所有条目</p>
+<p>-keypasswd更改条目的密钥口令</p>
+<p>-list列出密钥库中的条目</p>
+<p>-printcert打印证书内容</p>
+<p>-printcertreq打印证书请求的内容</p>
+<p>-printcrl打印 CRL 文件的内容</p>
+<p>-storepasswd更改密钥库的存储口令</p>
+<p><br></p>
+<p>[root@web1 jluo]# keytool -genkeypair -help</p>
+<p>-alias 要处理的条目的别名</p>
+<p>-keyalg 密钥算法名称</p>
+<p>-keysize 密钥位大小</p>
+<p>-sigalg 签名算法名称</p>
+<p>-destalias 目标别名</p>
+<p>-dname 唯一判别名</p>
+<p>-startdate 证书有效期开始日期/时间</p>
+<p>-ext                     X.509扩展</p>
+<p>-validity 有效天数</p>
+<p>-keypass 密钥口令</p>
+<p>-keystore 密钥库名称</p>
+<p>-storepass 密钥库口令</p>
+<p>-storetype 密钥库类型</p>
+<p>-providername 提供方名称</p>
+<p>-providerclass 提供方类名</p>
+<p>-providerarg 提供方参数</p>
+<p>-providerpath 提供方类路径</p>
+<p>-v详细输出</p>
+<p>-protected通过受保护的机制的口令</p>
+</blockquote><p><b>1）创建加密用的私钥和证书文件</b></p><blockquote>
+<p>[root@web1 ~]# keytool -genkeypair -alias tomcat -keyalg RSA -keystore /usr/local/tomcat/keystore                //提示输入密码为:123456</p>
+<p>//-genkeypair生成密钥对</p>
+<p>//-alias tomcat密钥别名</p>
+<p>//-keyalg RSA定义密钥算法为RSA算法</p>
+<p>//-keystore定义密钥文件存储在:/usr/local/tomcat/keystore</p>
+</blockquote><p><b>2)再次修改server.xml配置文件，创建支持加密连接的Connector</b></p><blockquote>
+<p>[root@web1 ~]# vim /usr/local/tomcat/conf/server.xml</p>
+<p>… …</p>
+<p>&lt;Connector port="8443" protocol="org.apache.coyote.http11.Http11NioProtocol"</p>
+<p>maxThreads="150" SSLEnabled="true" scheme="https" secure="true"</p>
+<p>keystoreFile="/usr/local/tomcat/keystore" keystorePass="123456" clientAuth="false" sslProtocol="TLS" /&gt;</p>
+<p>//备注，默认这段Connector被注释掉了，打开注释，添加密钥信息即可</p>
+<p>keystoreFile=”密钥绝对路径”　keystorePass=”密钥密码”</p>
+</blockquote><p><b>3）重启Tomcat服务器</b></p><blockquote>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/shutdown.sh</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/startup.sh</p>
+</blockquote><p><b>4）客户端设置host文件，并浏览测试页面进行测试(proxy充当客户端角色)</b></p><blockquote>
+<p>[root@proxy ~]# vim /etc/hosts</p>
+<p>… …</p>
+<p>192.168.2.100      www.a.com  www.b.com</p>
+<p>[root@proxy ~]# curl https://www.a.com:8443/</p>
+<p>[root@proxy ~]# curl  https://www.b.com:8443/</p>
+<p>[root@proxy ~]# curl https://192.168.2.100:8443/</p>
+</blockquote><p><b>7，配置Tomcat日志</b></p><p><b>1)为每个虚拟主机设置不同的日志文件</b></p><blockquote>
+<p>[root@web1 ~]# vim /usr/local/tomcat/conf/server.xml</p>
+<p>.. ..</p>
+<p>&lt;Host name="www.a.com" appBase="a" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>&lt;Context path="/test" docBase="/var/www/html/" /&gt;</p>
+<p>#从默认localhost虚拟主机中把Valve这段复制过来，适当修改下即可</p>
+<p>&lt;Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"　　　　　＃日志存放目录</p>
+<p>               prefix=" a_access" suffix=".txt"　　＃文件名，扩展名</p>
+<p>               pattern="%h %l %u %t "%r" %s %b" /&gt;</p>
+<p>&lt;/Host&gt;</p>
+<p>&lt;Host name="www.b.com" appBase="b" unpackWARS="true" autoDeploy="true"&gt;</p>
+<p>&lt;Context path="" docBase="base" /&gt;</p>
+<p>&lt;Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"</p>
+<p>               prefix=" b_access" suffix=".txt"</p>
+<p>               pattern="%h %l %u %t "%r" %s %b" /&gt;</p>
+<p>&lt;/Host&gt;</p>
+<p>.. ..</p>
+</blockquote><p><b>2）重启Tomcat服务器</b></p><blockquote>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/shutdown.sh</p>
+<p>[root@web1 ~]# /usr/local/tomcat/bin/startup.sh</p>
+</blockquote><p><b>3）查看服务器日志文件</b></p><blockquote><p>[root@web1 ~]# ls /usr/local/tomcat/logs/</p></blockquote><p><br></p><p><br></p><hr><p><b>看官福利：</b></p><div class="image-package  " data-index="1">
+<img class="uploaded-img" src="http://upload-images.jianshu.io/upload_images/17609428-401735a07d83e0ab.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/200/format/webp" style="min-height:200px;min-width:200px;" width="auto" height="auto"><br><div class="image-caption"></div>
+</div><hr><p><b>结束语：</b></p><p>更多精彩内容持续更新中，<b>关注我</b>，有你更精彩。</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
